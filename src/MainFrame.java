@@ -15,6 +15,7 @@ public class MainFrame extends JFrame {
     private JComboBox<String> cmbStyle;
     private JComboBox<String> cmbDiagonals;
     private JComboBox<String> cmbSquares;
+    private JCheckBox    chbSquaresForWholeBoard;
     //private JPanel   pnlSize;
     private JFormattedTextField txtBoardSize;
     private JComboBox<SquareSize> cmbSquareSizes;
@@ -25,7 +26,7 @@ public class MainFrame extends JFrame {
     private int amount, form, diagonals, squares, size, sx, sy, board, px, py;
     private int psx, psy;
     private double cell;
-    private boolean rotate;
+    private boolean lotOfSquares, rotate;
 
     private boolean sizeUpdated = false;
 
@@ -116,9 +117,6 @@ public class MainFrame extends JFrame {
             if (cell < 30) {
                 cell = 30;
                 board = 30 * size;
-
-                //int s = board + 10;
-                //this.setMinimumSize(new Dimension(s, s));
             }
             else if (cell > 45) {
                 cell = 45;
@@ -135,19 +133,21 @@ public class MainFrame extends JFrame {
             // diagonals and squares
             if (form == 0) {
                 if (squares > 0) {
-                    boolean[] sLeftRight = getLeftRight(squares);
-
                     g.setColor(Color.CYAN);
 
-                    for (int i = 0; i < size; i++) {
-                        int x1 = toInt(cell * i);
-                        int x2 = toInt(cell * (size-i-1));
-                        int wi = toInt(cell);
+                    for (int x = 0; x < size; x++) {
+                        int x1 = toInt(cell * x);
+                        int x2 = toInt(cell * (x + 1));
 
-                        if (sLeftRight[0])
-                            g.fillRoundRect(x1 + px, x1 + py, wi, wi, 15, 15);
-                        if (sLeftRight[1])
-                            g.fillRoundRect(x2 + px, x1 + py, wi, wi, 15, 15);
+                        for (int y = 0; y < size; y++) {
+                            int y1 = toInt(cell * y);
+                            int y2 = toInt(cell * (y + 1));
+                            int wi1 = x2 - x1;
+                            int wi2 = y2 - y1;
+
+                            if (maskSquares[x][y] > 0)
+                                g.fillRect(x1 + px, y1 + py, wi1, wi2);
+                        }
                     }
                 }
                 if (diagonals > 0) {
@@ -159,7 +159,7 @@ public class MainFrame extends JFrame {
                         int x1 = toInt(cell * i);
                         int x2 = toInt(cell * (size - i - 1));
                         int x3 = toInt(cell * (i + 1));
-                        int x4 = toInt(cell * (size-i));
+                        int x4 = toInt(cell * (size - i));
                         int wi1 = x3 - x1;
                         int wi2 = x4 - x2;
 
@@ -210,7 +210,7 @@ public class MainFrame extends JFrame {
                     drawLines(g, false, true);
                 }
             }
-            else { // form == 1 && mask != null
+            else { // form == 1 && maskFigures != null
                 // vertical lines
                 for (int y = 0; y < size; y++) {
                     for (int x = 0; x < size - 1; x++) {
@@ -246,7 +246,7 @@ public class MainFrame extends JFrame {
 
         @Override
         public Dimension getMinimumSize() {
-            int s = 30 * size + 10;
+            int s = 30 * size + 20;
             return new Dimension(s, s);
         }
     }
@@ -259,60 +259,65 @@ public class MainFrame extends JFrame {
     }
 
     private int[][] getMaskFigures() {
-        if (form == 1) {
+        if (form == 1 && size <= 10) {
             switch (size) {
+                case 4:
+                    return new int[][] {{1, 2, 2, 2},
+                                        {1, 3, 3, 2},
+                                        {1, 3, 3, 4},
+                                        {1, 4, 4, 4}};
                 case 5:
                     return new int[][] {{1, 1, 1, 5, 5},
-                            {1, 1, 3, 5, 5},
-                            {2, 3, 3, 3, 5},
-                            {2, 2, 3, 4, 4},
-                            {2, 2, 4, 4, 4}};
+                                        {1, 1, 3, 5, 5},
+                                        {2, 3, 3, 3, 5},
+                                        {2, 2, 3, 4, 4},
+                                        {2, 2, 4, 4, 4}};
                 case 6:
                     return new int[][] {{1, 1, 1, 5, 5, 5},
-                            {1, 1, 3, 3, 5, 5},
-                            {1, 3, 3, 3, 4, 5},
-                            {2, 3, 4, 4, 4, 6},
-                            {2, 2, 4, 4, 6, 6},
-                            {2, 2, 2, 6, 6, 6}};
+                                        {1, 1, 3, 3, 5, 5},
+                                        {1, 3, 3, 3, 4, 5},
+                                        {2, 3, 4, 4, 4, 6},
+                                        {2, 2, 4, 4, 6, 6},
+                                        {2, 2, 2, 6, 6, 6}};
                 case 7:
                     return new int[][] {{1, 1, 1, 1, 7, 7, 7},
-                            {1, 1, 3, 5, 5, 7, 7},
-                            {1, 3, 3, 3, 5, 5, 7},
-                            {2, 3, 3, 3, 5, 5, 7},
-                            {2, 4, 4, 4, 4, 5, 6},
-                            {2, 2, 4, 4, 4, 6, 6},
-                            {2, 2, 2, 6, 6, 6, 6}};
+                                        {1, 1, 3, 5, 5, 7, 7},
+                                        {1, 3, 3, 3, 5, 5, 7},
+                                        {2, 3, 3, 3, 5, 5, 7},
+                                        {2, 4, 4, 4, 4, 5, 6},
+                                        {2, 2, 4, 4, 4, 6, 6},
+                                        {2, 2, 2, 6, 6, 6, 6}};
                 case 8:
                     return new int[][] {{1, 1, 1, 1, 1, 8, 8, 8},
-                            {1, 1, 3, 3, 7, 7, 8, 8},
-                            {1, 3, 3, 3, 3, 7, 7, 8},
-                            {2, 3, 4, 4, 3, 7, 7, 8},
-                            {2, 4, 4, 5, 7, 7, 5, 8},
-                            {2, 4, 4, 5, 5, 5, 5, 6},
-                            {2, 2, 4, 4, 5, 5, 6, 6},
-                            {2, 2, 2, 6, 6, 6, 6, 6}};
+                                        {1, 1, 3, 3, 7, 7, 8, 8},
+                                        {1, 3, 3, 3, 3, 7, 7, 8},
+                                        {2, 3, 4, 4, 3, 7, 7, 8},
+                                        {2, 4, 4, 5, 7, 7, 5, 8},
+                                        {2, 4, 4, 5, 5, 5, 5, 6},
+                                        {2, 2, 4, 4, 5, 5, 6, 6},
+                                        {2, 2, 2, 6, 6, 6, 6, 6}};
                 case 9:
                     return new int[][] {{1, 1, 1, 1, 4, 7, 9, 9, 9},
-                            {1, 1, 4, 1, 4, 7, 7, 9, 9},
-                            {1, 1, 4, 4, 4, 5, 7, 9, 9},
-                            {2, 2, 4, 5, 4, 5, 7, 7, 9},
-                            {3, 2, 4, 5, 5, 5, 6, 7, 9},
-                            {3, 2, 2, 5, 6, 5, 6, 7, 7},
-                            {3, 3, 2, 5, 6, 6, 6, 8, 8},
-                            {3, 3, 2, 2, 6, 8, 6, 8, 8},
-                            {3, 3, 3, 2, 6, 8, 8, 8, 8}};
+                                        {1, 1, 4, 1, 4, 7, 7, 9, 9},
+                                        {1, 1, 4, 4, 4, 5, 7, 9, 9},
+                                        {2, 2, 4, 5, 4, 5, 7, 7, 9},
+                                        {3, 2, 4, 5, 5, 5, 6, 7, 9},
+                                        {3, 2, 2, 5, 6, 5, 6, 7, 7},
+                                        {3, 3, 2, 5, 6, 6, 6, 8, 8},
+                                        {3, 3, 2, 2, 6, 8, 6, 8, 8},
+                                        {3, 3, 3, 2, 6, 8, 8, 8, 8}};
                 case 10:
                 default:
                     return new int[][] {{1, 1, 1, 1, 6, 6, 8, 8, 8, 8},
-                            {1, 1, 1, 6, 6, 6, 6, 8, 8, 8},
-                            {1, 1, 2, 6, 6, 4, 6, 6, 8, 8},
-                            {1, 2, 2, 4, 4, 4, 7,10,10, 8},
-                            {2, 2, 4, 4, 4, 7, 7,10,10,10},
-                            {2, 2, 2, 4, 4, 7, 7, 7,10,10},
-                            {3, 2, 2, 4, 7, 7, 7,10,10, 9},
-                            {3, 3, 5, 5, 7, 5, 5,10, 9, 9},
-                            {3, 3, 3, 5, 5, 5, 5, 9, 9, 9},
-                            {3, 3, 3, 3, 5, 5, 9, 9, 9, 9}};
+                                        {1, 1, 1, 6, 6, 6, 6, 8, 8, 8},
+                                        {1, 1, 2, 6, 6, 4, 6, 6, 8, 8},
+                                        {1, 2, 2, 4, 4, 4, 7,10,10, 8},
+                                        {2, 2, 4, 4, 4, 7, 7,10,10,10},
+                                        {2, 2, 2, 4, 4, 7, 7, 7,10,10},
+                                        {3, 2, 2, 4, 7, 7, 7,10,10, 9},
+                                        {3, 3, 5, 5, 7, 5, 5,10, 9, 9},
+                                        {3, 3, 3, 5, 5, 5, 5, 9, 9, 9},
+                                        {3, 3, 3, 3, 5, 5, 9, 9, 9, 9}};
             }
         }
         else {
@@ -339,29 +344,101 @@ public class MainFrame extends JFrame {
     }
 
     private int[][] getMaskSquares() {
-        if (form == 0) {
-            int[][] arr = new int[size][size];
+        int[][] arr = new int[size][size];
 
-            int z = 1;
-
-            /*for (int y = 0; y < size; y++) {
-                if (y > 0 && y % sy == 0)
-                    z += sx;
-
-                int z2 = z;
-
-                for (int x = 0; x < size; x++) {
-                    if (x > 0 && x % sx == 0)
-                        z2++;
-
-                    arr[x][y] = z2;
-                }
-            }*/
-
+        if (form == 1 || squares == 0 || sx == 1 || sy == 1)
             return arr;
+
+        boolean[] sLeftRight = getLeftRight(squares);
+
+        // 1 square
+        if (size == 4) {
+            for (int x = 0; x < sx; x++)
+                for (int y = 0; y < sy; y++)
+                    arr[x + 1][y + 1] = 1;
         }
-        else
-            return null;
+        // 2 squares
+        else if (sx == 2 || sy == 2) {
+            int x1 = sx / 2;
+            int x2 = size - x1 - 1;
+
+            int y1 = sy / 2;
+            int y2 = size - y1 - 1;
+
+            if (sLeftRight[0]) {
+                for (int y = 0; y < sy; y++) {
+                    for (int x = 0; x < sx; x++) {
+                        arr[x1 + x][y1 + y] = 1;
+                        arr[x2 - x][y2 - y] = 2;
+                    }
+                }
+            }
+            else {
+                for (int y = 0; y < sy; y++) {
+                    for (int x = 0; x < sx; x++) {
+                        arr[x2 - x][y1 + y] = 1;
+                        arr[x1 + x][y2 - y] = 2;
+                    }
+                }
+            }
+        }
+        // 2-4 squares
+        else if (!lotOfSquares) {
+            int x1 = sx / 2;
+            int x2 = size - x1 - 1;
+
+            int y1 = sy / 2;
+            int y2 = size - y1 - 1;
+
+            if ((sx == 3 ^ sy == 3) && (sx + sy) % 2 == 1)
+                if (sy == 3) {
+                    x1--;
+                    x2++;
+                }
+                else {
+                    y1--;
+                    y2++;
+                }
+
+            for (int y = 0; y < sy; y++) {
+                for (int x = 0; x < sx; x++) {
+                    if (sLeftRight[0]) {
+                        arr[x1 + x][y1 + y] = 1;
+                        arr[x2 - x][y2 - y] = 2;
+                    }
+                    if (sLeftRight[1]) {
+                        arr[x2 - x][y1 + y] = 3;
+                        arr[x1 + x][y2 - y] = 4;
+                    }
+                }
+            }
+        }
+        // 2-17 squares
+        else {
+            for (int i = 1, m = 1, n = size; i < size; i += sx + 1, m++, n++) {
+                for (int y = 0; y < sy; y++) {
+                    int y1 = i + y;
+
+                    for (int x = 0; x < sx; x++) {
+                        int x1 = i + x;
+
+                        if (sLeftRight[0])
+                            arr[x1][y1] = m;
+
+                        if (sLeftRight[0] && size % 2 == 0 && m == size / 2)
+                            continue;
+
+                        if (sLeftRight[1]) {
+                            int x2 = size - x1 - 1;
+
+                            arr[x2][y1] = n;
+                        }
+                    }
+                }
+            }
+        }
+
+        return arr;
     }
 
     private MainFrame() {
@@ -392,13 +469,12 @@ public class MainFrame extends JFrame {
                             toStr(x) + " ; " + toStr(y),
                             "some",
                             JOptionPane.INFORMATION_MESSAGE);
+                    // TO-DO: edit digits in cells
                 }
             }
         });
 
         JScrollPane scrollPane = new JScrollPane(pnlBoard, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        //scrollPane.setLayout(new BorderLayout(8, 8));
-        //scrollPane.add(pnlBoard, BorderLayout.CENTER);
 
         add(scrollPane);//, BorderLayout.CENTER);
 
@@ -412,11 +488,8 @@ public class MainFrame extends JFrame {
         cmbStyle.addActionListener((ActionEvent e) -> {
             form = cmbStyle.getSelectedIndex();
 
-            maskFigures = getMaskFigures();
-
-            btnRevertUpdate();
-
-            pnlBoard.repaint();
+            sizeChanged();
+            squareChanged();
         });
 
         diagonals = 0;
@@ -445,8 +518,19 @@ public class MainFrame extends JFrame {
 
         cmbSquares.addActionListener((ActionEvent e) -> {
             squares = cmbSquares.getSelectedIndex();
+            maskSquares = getMaskSquares();
+
+            buttonsUpdate();
 
             pnlBoard.repaint();
+        });
+
+        chbSquaresForWholeBoard = new JCheckBox("and a lot");
+        chbSquaresForWholeBoard.setEnabled(false);
+
+        chbSquaresForWholeBoard.addActionListener((ActionEvent e) -> {
+            lotOfSquares = chbSquaresForWholeBoard.isSelected();
+            squareChanged();
         });
 
         JPanel pnlStyle = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
@@ -456,6 +540,7 @@ public class MainFrame extends JFrame {
         pnlStyle.add(cmbDiagonals);
         pnlStyle.add(new JLabel("and"));
         pnlStyle.add(cmbSquares);
+        pnlStyle.add(chbSquaresForWholeBoard);
         //pnlStyle.add(new JLabel("."));
 
         add(pnlStyle, BorderLayout.SOUTH);
@@ -477,9 +562,9 @@ public class MainFrame extends JFrame {
             size = toInt(txtBoardSize.getText());
 
             sizeChanged();
-            sizeUpdated = true;
+            squareChanged();
 
-            pnlBoard.repaint();
+            sizeUpdated = true;
         });
 
         txtBoardSize.addFocusListener(new FocusListener() {
@@ -491,9 +576,9 @@ public class MainFrame extends JFrame {
             public void focusLost(FocusEvent e) {
                 if (!sizeUpdated) {
                     size = toInt(txtBoardSize.getText());
-                    sizeChanged();
 
-                    pnlBoard.repaint();
+                    sizeChanged();
+                    squareChanged();
                 }
                 else {
                     sizeUpdated = false;
@@ -507,7 +592,9 @@ public class MainFrame extends JFrame {
         cmbSquareSizes.setPrototypeDisplayValue(new SquareSize());
         cmbSquareSizes.setEnabled(false);
 
-        cmbSquareSizes.addActionListener((ActionEvent e) -> squareChanged());
+        cmbSquareSizes.addActionListener(
+                (ActionEvent e) -> squareChanged()
+        );
 
         btnRotate = new JToggleButton("and doesn't need to rotate", false);
         btnRotate.setEnabled(false);
@@ -515,9 +602,6 @@ public class MainFrame extends JFrame {
         btnRotate.addActionListener((ActionEvent e) -> {
             rotate = btnRotate.isSelected();
             squareChanged();
-            btnRevertUpdate();
-
-            pnlBoard.repaint();
         });
 
         JPanel pnlSize = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
@@ -546,6 +630,9 @@ public class MainFrame extends JFrame {
         pnlBottom.add(button);
 
         add(pnlBottom, BorderLayout.SOUTH);
+
+        maskFigures = getMaskFigures();
+        maskSquares = getMaskSquares();
 
         pnlBoard.repaint();
 
@@ -599,21 +686,36 @@ public class MainFrame extends JFrame {
         }
     }**/
 
-    private void btnRevertUpdate() {
+    private void buttonsUpdate() {
         //Object item = cmbSquareSizes.getSelectedItem();
         SquareSize item = (SquareSize) cmbSquareSizes.getSelectedItem();
 
         boolean isRandom = (form == 1);
 
         if (isRandom) {
+            lotOfSquares = false;
+
+            chbSquaresForWholeBoard.setSelected(false);
+            chbSquaresForWholeBoard.setEnabled(false);
+
             btnRotate.setText("and doesn't need to rotate");
             btnRotate.setEnabled(false);
         }
         else if (!cmbSquareSizes.isEnabled() || item == null || sx == sy) {
+            if (sx != sy)
+                lotOfSquares = false;
+
+            chbSquaresForWholeBoard.setEnabled(squares != 0);
+
             btnRotate.setText("and can't be rotated");
             btnRotate.setEnabled(false);
         }
         else {
+            lotOfSquares = false;
+
+            chbSquaresForWholeBoard.setSelected(false);
+            chbSquaresForWholeBoard.setEnabled(false);
+
             if (!rotate)
                 btnRotate.setText("without rotation");
             else
@@ -684,25 +786,31 @@ public class MainFrame extends JFrame {
             }
             else
                 h = this.getHeight();
-            System.out.println(size);
-            System.out.println(new Dimension(w, h));
-            System.out.println(this.getSize());
+
             this.setSize(w, h);
 
-            //pnlBoard.setMinimumSize(d);
-            //pnlBoard.setPreferredSize(d);
-
-            //pnlBoard.resize(d);
+            pnlBoard.setPreferredSize(d);
 
             if (isRandom) {
+                cmbDiagonals.setEnabled(false);
+                cmbSquares.setEnabled(false);
+
                 cmbSquareSizes.setEnabled(false);
-            } else {
+            }
+            else {
+                cmbDiagonals.setEnabled(true);
+                cmbSquares.setEnabled(true);
+
                 cmbSquareSizes.setEnabled(true);
                 cmbSquareSizes.requestFocusInWindow();
             }
+
         }
 
-        btnRevertUpdate();
+        buttonsUpdate();
+
+        maskFigures = getMaskFigures();
+        maskSquares = getMaskSquares();
     }
 
     private void squareChanged() {
@@ -718,7 +826,10 @@ public class MainFrame extends JFrame {
                 sy = item.x;
             }
 
-            btnRevertUpdate();
+            buttonsUpdate();
+
+            maskFigures = getMaskFigures();
+            maskSquares = getMaskSquares();
 
             pnlBoard.repaint();
         }
