@@ -2,6 +2,7 @@ import javax.swing.*;
 import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.text.NumberFormat;
 
 public class MainFrame extends JFrame {
@@ -22,13 +23,19 @@ public class MainFrame extends JFrame {
     private JToggleButton btnRotate;
     private JButton button;
 
+    private BufferedImage boardImage;
+    Graphics2D g;
+
     private int[][] maskFigures, maskSquares;
+
     private int amount, form, diagonals, squares, size, sx, sy, board, px, py;
     private int psx, psy;
     private double cell;
-    private boolean lotOfSquares, rotate;
+    private boolean boardMade, lotOfSquares, rotate;
 
     private boolean sizeUpdated = false;
+
+    // class for sizes
 
     private class SquareSize {
         private int x;
@@ -52,6 +59,8 @@ public class MainFrame extends JFrame {
         }
     }
 
+    // conversation
+
     private static String toStr(int d) {
         return Integer.toString(d);
     }
@@ -71,6 +80,178 @@ public class MainFrame extends JFrame {
 
     private static double toFloat(Integer d) {
         return d.doubleValue();
+    }
+
+    // drawing
+
+    private void setStroke(Graphics2D g, int i, int s) {
+        if (i % s == 0)
+            g.setStroke(stroke);
+        else
+            g.setStroke(thin);
+    }
+
+    private void drawLines(Graphics2D g,
+                           boolean horizontal,
+                           boolean vertical) {
+        for (int i = 1; i < size; i++) {
+            int s = board;
+            int z = toInt(cell * i);
+
+            if (vertical) {
+                setStroke(g, i, sx);
+
+                g.drawLine(z + px, py, z + px, s + py);
+            }
+            if (horizontal) {
+                setStroke(g, i, sy);
+
+                g.drawLine(px, z + py, s + px, z + py);
+            }
+        }
+    }
+
+    protected void paintBoard() {
+        px = py = 10;
+
+        boardImage = new BufferedImage(pnlBoard.getWidth(), pnlBoard.getHeight(), BufferedImage.TYPE_4BYTE_ABGR);
+        g = boardImage.createGraphics();
+
+        int w = boardImage.getWidth() - 2 * px;
+        int h = boardImage.getHeight() - 2 * py;
+        board = w < h ? w : h;
+        cell = toFloat(board) / size;
+
+        if (cell < 30) {
+            cell = 30;
+            board = 30 * size;
+        }
+        else if (cell > 45) {
+            cell = 45;
+            board = 45 * size;
+        }
+
+        px = (w - board) / 2 + px;
+        py = (h - board) / 2 + py;
+
+        // background
+        g.setColor(Color.WHITE);
+        g.fillRoundRect(px, py, board, board, 15, 15);
+
+        // diagonals and squares
+        if (form == 0) {
+            if (squares > 0) {
+                g.setColor(Color.CYAN);
+
+                for (int x = 0; x < size; x++) {
+                    int x1 = toInt(cell * x);
+                    int x2 = toInt(cell * (x + 1));
+
+                    for (int y = 0; y < size; y++) {
+                        int y1 = toInt(cell * y);
+                        int y2 = toInt(cell * (y + 1));
+                        int wi1 = x2 - x1;
+                        int wi2 = y2 - y1;
+
+                        if (maskSquares[x][y] > 0)
+                            g.fillRect(x1 + px, y1 + py, wi1, wi2);
+                    }
+                }
+            }
+            if (diagonals > 0) {
+                boolean[] dLeftRight = getLeftRight(diagonals);
+
+                g.setColor(Color.PINK);
+
+                for (int i = 0; i < size; i++) {
+                    int x1 = toInt(cell * i);
+                    int x2 = toInt(cell * (size - i - 1));
+                    int x3 = toInt(cell * (i + 1));
+                    int x4 = toInt(cell * (size - i));
+                    int wi1 = x3 - x1;
+                    int wi2 = x4 - x2;
+
+                    if (dLeftRight[0]) {
+                        g.fillRoundRect(x1 + px, x1 + py, wi1, wi1, 15, 15);
+
+                        // left top corner
+                        if (i > 0)
+                            g.fillRect(x1 + px, x1 + py, 15, 15);
+                        // left bottom corner
+                        g.fillRect(x1 + px, x3 + py - 15, 15, 15);
+                        // right top corner
+                        g.fillRect(x3 + px - 15, x1 + py, 15, 15);
+                        // right bottom corner
+                        if (i < size - 1)
+                            g.fillRect(x3 + px - 15, x3 + py - 15, 15, 15);
+                    }
+                    if (dLeftRight[1]) {
+                        g.fillRoundRect(x2 + px, x1 + py, wi2, wi2, 15, 15);
+
+                        // left top corner
+                        g.fillRect(x2 + px, x1 + py, 15, 15);
+                        // left bottom corner
+                        if (i < size - 1)
+                            g.fillRect(x2 + px, x3 + py - 15, 15, 15);
+                        // right top corner
+                        if (i > 0)
+                            g.fillRect(x4 + px - 15, x1 + py, 15, 15);
+                        // right bottom corner
+                        g.fillRect(x4 + px - 15, x3 + py - 15, 15, 15);
+                    }
+                }
+            }
+        }
+
+        // bevel
+        g.setColor(Color.LIGHT_GRAY);
+        g.setStroke(stroke);
+        g.drawRoundRect(px, py, board, board, 15, 15);
+
+        // grid
+        if (form == 0) {
+            if (sx == sy) {
+                drawLines(g, true, true);
+            }
+            else {
+                drawLines(g, true, false);
+                drawLines(g, false, true);
+            }
+        }
+        else { // form == 1 && maskFigures != null
+            // vertical lines
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size - 1; x++) {
+                    int zx = toInt(cell * (x + 1));
+                    int z1 = toInt(cell * y);
+                    int z2 = toInt(cell * (y + 1));
+
+                    if (maskFigures[x][y] != maskFigures[x + 1][y])
+                        g.setStroke(stroke);
+                    else
+                        g.setStroke(thin);
+
+                    g.drawLine(zx + px, z1 + py, zx + px, z2 + py);
+                }
+            }
+            // horizontal lines
+            for (int y = 0; y < size - 1; y++) {
+                for (int x = 0; x < size; x++) {
+                    int z1 = toInt(cell * x);
+                    int z2 = toInt(cell * (x + 1));
+                    int zy = toInt(cell * (y + 1));
+
+                    if (maskFigures[x][y] != maskFigures[x][y + 1])
+                        g.setStroke(stroke);
+                    else
+                        g.setStroke(thin);
+
+                    g.drawLine(z1 + px, zy + py, z2 + px, zy + py);
+                }
+            }
+        }
+
+        boardMade = true;
     }
 
     private class JBoard extends JPanel {
@@ -101,13 +282,36 @@ public class MainFrame extends JFrame {
             }
         }
 
+        /*@Override
+        public void update(Graphics g2) {
+            super.update(g2);
+        }*/
+
+        /*@Override
+        public void paint(Graphics g) {
+            super.paint(g);
+        }*/
+
         @Override
         protected void paintComponent(Graphics g2) {
             super.paintComponent(g2);
 
-            Graphics2D g = (Graphics2D) g2;
+            System.out.println(boardMade);
 
-            px = py = 10;
+            /*if (boardMade)
+                return;
+            else*/
+            if (!boardMade || boardImage.getWidth() != getWidth() || boardImage.getHeight() != getHeight()) {
+                System.out.println("some");
+                paintBoard();
+            }
+
+            Rectangle r = getVisibleRect();
+
+            Graphics2D g = (Graphics2D) g2;
+            g.drawImage(boardImage.getSubimage(r.x, r.y, r.width, r.height), r.x, r.y, null);
+
+            /*px = py = 10;
 
             int w = getWidth() - 2 * px;
             int h = getHeight() - 2 * py;
@@ -241,7 +445,10 @@ public class MainFrame extends JFrame {
                         g.drawLine(z1 + px, zy + py, z2 + px, zy + py);
                     }
                 }
-            }
+            }*/
+
+            //boardMade = true;
+            System.out.println("repainted");
         }
 
         @Override
@@ -447,6 +654,7 @@ public class MainFrame extends JFrame {
         pnlBoard = new JBoard();
         //pnlBoard.setBorder(BorderFactory.createSoftBevelBorder(BevelBorder.LOWERED));
         pnlBoard.setPreferredSize(new Dimension(300, 300));
+        //pnlBoard.setDoubleBuffered(true);
 
         pnlBoard.addMouseListener(new MouseAdapter() {
             @Override
@@ -504,6 +712,7 @@ public class MainFrame extends JFrame {
         cmbDiagonals.addActionListener((ActionEvent e) -> {
             diagonals = cmbDiagonals.getSelectedIndex();
 
+            boardMade = false;
             pnlBoard.repaint();
         });
 
@@ -522,6 +731,7 @@ public class MainFrame extends JFrame {
 
             buttonsUpdate();
 
+            boardMade = false;
             pnlBoard.repaint();
         });
 
@@ -634,6 +844,7 @@ public class MainFrame extends JFrame {
         maskFigures = getMaskFigures();
         maskSquares = getMaskSquares();
 
+        boardMade = false;
         pnlBoard.repaint();
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -831,6 +1042,7 @@ public class MainFrame extends JFrame {
             maskFigures = getMaskFigures();
             maskSquares = getMaskSquares();
 
+            boardMade = false;
             pnlBoard.repaint();
         }
     }
@@ -865,13 +1077,13 @@ public class MainFrame extends JFrame {
 
         switch (value) {
             case 1:
-                arr[0]  = true;
+                arr[0] = true;
                 break;
             case 2:
                 arr[1] = true;
                 break;
             default:
-                arr[0]  = true;
+                arr[0] = true;
                 arr[1] = true;
         }
 
