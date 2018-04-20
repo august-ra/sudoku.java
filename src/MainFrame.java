@@ -23,12 +23,15 @@ public class MainFrame extends JFrame {
     private JButton button;
 
     private int[][] maskFigures, maskSquares;
+
     private int amount, form, diagonals, squares, size, sx, sy, board, px, py;
     private int psx, psy;
     private double cell;
     private boolean lotOfSquares, rotate;
 
     private boolean sizeUpdated = false;
+
+    // class for sizes
 
     private class SquareSize {
         private int x;
@@ -52,6 +55,8 @@ public class MainFrame extends JFrame {
         }
     }
 
+    // conversation
+
     private static String toStr(int d) {
         return Integer.toString(d);
     }
@@ -72,6 +77,8 @@ public class MainFrame extends JFrame {
     private static double toFloat(Integer d) {
         return d.doubleValue();
     }
+
+    // drawing
 
     private class JBoard extends JPanel {
         private void setStroke(Graphics2D g, int i, int s) {
@@ -447,6 +454,7 @@ public class MainFrame extends JFrame {
         pnlBoard = new JBoard();
         //pnlBoard.setBorder(BorderFactory.createSoftBevelBorder(BevelBorder.LOWERED));
         pnlBoard.setPreferredSize(new Dimension(300, 300));
+        //pnlBoard.setDoubleBuffered(true);
 
         pnlBoard.addMouseListener(new MouseAdapter() {
             @Override
@@ -865,13 +873,13 @@ public class MainFrame extends JFrame {
 
         switch (value) {
             case 1:
-                arr[0]  = true;
+                arr[0] = true;
                 break;
             case 2:
                 arr[1] = true;
                 break;
             default:
-                arr[0]  = true;
+                arr[0] = true;
                 arr[1] = true;
         }
 
