@@ -12,24 +12,31 @@ public class MainFrame extends JFrame {
     private JBoard pnlBoard;
     //private JPanel pnlBottom;
     //private JPanel   pnlStyle;
-    private JComboBox<String> cmbStyle;
+    private JComboBox<String> cmbSubsquareForm;
     private JComboBox<String> cmbDiagonals;
     private JComboBox<String> cmbSquares;
-    private JCheckBox    chbSquaresForWholeBoard;
+    private JToggleButton btnLotsOfSquares;
     //private JPanel   pnlSize;
-    private JFormattedTextField txtBoardSize;
-    private JComboBox<SquareSize> cmbSquareSizes;
+    private JComboBox<Integer> cmbSquareAmount;
+    private JFormattedTextField txtSquareSize;
+    private JComboBox<SquareSize> cmbSubsquareSizes;
     private JToggleButton btnRotate;
     private JButton button;
 
     private int[][] maskFigures, maskSquares;
 
-    private int amount, form, diagonals, squares, size, sx, sy, board, px, py;
-    private int psx, psy;
-    private double cell;
+    // on-form settings
+    private int amount, form, diagonals, squares, size, sx, sy;
     private boolean lotOfSquares, rotate;
 
     private boolean sizeUpdated = false;
+
+    // calculated values
+    private int bWidth, bHeight, sizeX, sizeY, px, py; // paddings from top-left corner
+    private Point[] p;
+    private boolean[][] c;
+    //private int psx, psy;
+    private double sizeCell;
 
     // class for sizes
 
@@ -91,19 +98,20 @@ public class MainFrame extends JFrame {
         private void drawLines(Graphics2D g,
                                boolean horizontal,
                                boolean vertical) {
-            for (int i = 1; i < size; i++) {
-                int s = board;
-                int z = toInt(cell * i);
+            for (int n = 0; n < amount; n++) {
+                for (int i = 1; i < size; i++) {
+                    if (vertical) {
+                        int x = toInt(sizeCell * (p[n].x + i));
 
-                if (vertical) {
-                    setStroke(g, i, sx);
+                        setStroke(g, i, sx);
+                        g.drawLine(x + px, toInt(sizeCell * p[n].y) + py, x + px, toInt(sizeCell * (p[n].y + size)) + py);
+                    }
+                    if (horizontal) {
+                        int y = toInt(sizeCell * (p[n].y + i));
 
-                    g.drawLine(z + px, py, z + px, s + py);
-                }
-                if (horizontal) {
-                    setStroke(g, i, sy);
-
-                    g.drawLine(px, z + py, s + px, z + py);
+                        setStroke(g, i, sy);
+                        g.drawLine(toInt(sizeCell * p[n].x) + px, y + py, toInt(sizeCell * (p[n].x + size)) + px, y + py);
+                    }
                 }
             }
         }
@@ -118,85 +126,112 @@ public class MainFrame extends JFrame {
 
             int w = getWidth() - 2 * px;
             int h = getHeight() - 2 * py;
-            board = w < h ? w : h;
-            cell = toFloat(board) / size;
 
-            if (cell < 30) {
-                cell = 30;
-                board = 30 * size;
-            }
-            else if (cell > 45) {
-                cell = 45;
-                board = 45 * size;
-            }
+            if (amount == 1)
+                sizeCell = Math.min(toFloat(w)/size, toFloat(h)/size);
+            else
+                sizeCell = Math.min(toFloat(w)/sizeX, toFloat(h)/sizeY);
 
-            px = (w - board) / 2 + px;
-            py = (h - board) / 2 + py;
+            if (sizeCell < 30)
+                sizeCell = 30;
+            else if (sizeCell > 45)
+                sizeCell = 45;
+
+            bWidth = toInt(sizeCell * sizeX);
+            bHeight = toInt(sizeCell * sizeY);
+
+            px = (w - bWidth) / 2 + px;
+            py = (h - bHeight) / 2 + py;
 
             // background
             g.setColor(Color.WHITE);
-            g.fillRoundRect(px, py, board, board, 15, 15);
+            //g.fillRoundRect(px, py, bWidth, bHeight, 15, 15);
+
+            for (int n = 0; n < amount; n++) {
+                int x1 = toInt(sizeCell * p[n].x);
+                int x2 = toInt(sizeCell * (p[n].x + size));
+                int y1 = toInt(sizeCell * p[n].y);
+                int y2 = toInt(sizeCell * (p[n].y + size));
+                int wi = x2 - x1;
+                int he = y2 - y1;
+
+                if (c[n][0] && c[n][1] && c[n][2] && c[n][3])
+                    g.fillRect(x1 + px, y1 + py, wi, he);
+                else // ! amount == 5 && n == 1
+                    g.fillRoundRect(x1 + px, y1 + py, wi, he, 15, 15);
+            }
+
+            boolean[] dLeftRight = getLeftRight(diagonals);
 
             // diagonals and squares
             if (form == 0) {
                 if (squares > 0) {
                     g.setColor(Color.CYAN);
 
-                    for (int x = 0; x < size; x++) {
-                        int x1 = toInt(cell * x);
-                        int x2 = toInt(cell * (x + 1));
+                    for (int n = 0; n < amount; n++) {
+                        for (int x = 0; x < size; x++) {
+                            int x1 = toInt(sizeCell * (p[n].x + x));
+                            int x2 = toInt(sizeCell * (p[n].x + x + 1));
+                            int wi = x2 - x1;
 
-                        for (int y = 0; y < size; y++) {
-                            int y1 = toInt(cell * y);
-                            int y2 = toInt(cell * (y + 1));
-                            int wi1 = x2 - x1;
-                            int wi2 = y2 - y1;
+                            for (int y = 0; y < size; y++) {
+                                int y1 = toInt(sizeCell * (p[n].y + y));
+                                int y2 = toInt(sizeCell * (p[n].y + y + 1));
+                                int he = y2 - y1;
 
-                            if (maskSquares[x][y] > 0)
-                                g.fillRect(x1 + px, y1 + py, wi1, wi2);
+                                if (maskSquares[p[n].x + x][p[n].y + y] > 0)
+                                    g.fillRect(x1 + px, y1 + py, wi, he);
+                            }
                         }
                     }
                 }
+
                 if (diagonals > 0) {
-                    boolean[] dLeftRight = getLeftRight(diagonals);
+                    for (int n = 0; n < amount; n++) {
+                        for (int i = 0; i < size; i++) {
+                            int x1 = toInt(sizeCell * (p[n].x + i));
+                            int x2 = toInt(sizeCell * (p[n].x + size - i - 1));
+                            int x3 = toInt(sizeCell * (p[n].x + i + 1));
+                            int x4 = toInt(sizeCell * (p[n].x + size - i));
+                            int y1 = toInt(sizeCell * (p[n].y + i));
+                            int y2 = toInt(sizeCell * (p[n].y + size - i - 1));
+                            int y3 = toInt(sizeCell * (p[n].y + i + 1));
+                            int y4 = toInt(sizeCell * (p[n].y + size - i));
+                            int wi1 = x3 - x1;
+                            int wi2 = x4 - x2;
+                            int he1 = y3 - y1;
+                            int he2 = y4 - y2;
 
-                    g.setColor(Color.PINK);
+                            if (dLeftRight[0]) {
+                                g.setColor(Color.PINK);
+                                g.fillRoundRect(x1 + px, y1 + py, wi1, he1, 15, 15);
 
-                    for (int i = 0; i < size; i++) {
-                        int x1 = toInt(cell * i);
-                        int x2 = toInt(cell * (size - i - 1));
-                        int x3 = toInt(cell * (i + 1));
-                        int x4 = toInt(cell * (size - i));
-                        int wi1 = x3 - x1;
-                        int wi2 = x4 - x2;
+                                // left top corner
+                                if (i > 0)
+                                    g.fillRect(x1 + px, y1 + py, 15, 15);
+                                // right top corner
+                                g.fillRect(x3 + px - 15, y1 + py, 15, 15);
+                                // right bottom corner
+                                if (i < size - 1)
+                                    g.fillRect(x3 + px - 15, y3 + py - 15, 15, 15);
+                                // left bottom corner
+                                g.fillRect(x1 + px, y3 + py - 15, 15, 15);
+                            }
+                            if (dLeftRight[1]) {
+                                g.setColor(Color.PINK);
+                                g.fillRoundRect(x2 + px, y1 + py, wi2, he2, 15, 15);
 
-                        if (dLeftRight[0]) {
-                            g.fillRoundRect(x1 + px, x1 + py, wi1, wi1, 15, 15);
-
-                            // left top corner
-                            if (i > 0)
-                                g.fillRect(x1 + px, x1 + py, 15, 15);
-                            // left bottom corner
-                            g.fillRect(x1 + px, x3 + py - 15, 15, 15);
-                            // right top corner
-                            g.fillRect(x3 + px - 15, x1 + py, 15, 15);
-                            // right bottom corner
-                            if (i < size - 1)
-                                g.fillRect(x3 + px - 15, x3 + py - 15, 15, 15);
-                        }
-                        if (dLeftRight[1]) {
-                            g.fillRoundRect(x2 + px, x1 + py, wi2, wi2, 15, 15);
-
-                            // left top corner
-                            g.fillRect(x2 + px, x1 + py, 15, 15);
-                            // left bottom corner
-                            if (i < size - 1)
-                                g.fillRect(x2 + px, x3 + py - 15, 15, 15);
-                            // right top corner
-                            if (i > 0)
-                                g.fillRect(x4 + px - 15, x1 + py, 15, 15);
-                            // right bottom corner
-                            g.fillRect(x4 + px - 15, x3 + py - 15, 15, 15);
+                                // left top corner
+                                g.fillRect(x2 + px, y1 + py, 15, 15);
+                                // right top corner
+                                if (i > 0)
+                                    g.fillRect(x4 + px - 15, y1 + py, 15, 15);
+                                // right bottom corner
+                                g.fillRect(x4 + px - 15, y3 + py - 15, 15, 15);
+                                // left bottom corner
+                                if (i < size - 1)
+                                    g.fillRect(x2 + px, y3 + py - 15, 15, 15);
+                            }
                         }
                     }
                 }
@@ -205,10 +240,73 @@ public class MainFrame extends JFrame {
             // bevel
             g.setColor(Color.LIGHT_GRAY);
             g.setStroke(stroke);
-            g.drawRoundRect(px, py, board, board, 15, 15);
+            //g.drawRoundRect(px, py, bWidth, bHeight, 15, 15);
+
+            for (int n = 0; n < amount; n++) {
+                int x1 = toInt(sizeCell * p[n].x);
+                int x2 = toInt(sizeCell * (p[n].x + size));
+                int y1 = toInt(sizeCell * p[n].y);
+                int y2 = toInt(sizeCell * (p[n].y + size));
+                int wi = x2 - x1;
+                int he = y2 - y1;
+
+                if (c[n][0] && c[n][1] && c[n][2] && c[n][3])
+                    g.drawRect(x1 + px, y1 + py, wi, he);
+                else // ! amount == 5 && n == 1
+                    g.drawRoundRect(x1 + px, y1 + py, wi, he, 15, 15);
+            }
+
+            // corners' correction
+            for (int n = 0; n < amount; n++) {
+                for (int x = 0; x < size; x++) {
+                    if (x == 1)
+                        x = size - 1;
+
+                    for (int y = 0; y < size; y++) {
+                        if (x == 1)
+                            x = size - 1;
+
+                        int x1 = toInt(sizeCell * (p[n].x + x));
+                        int x2 = toInt(sizeCell * (p[n].x + x + 1));
+
+                        int y1 = toInt(sizeCell * (p[n].y + y));
+                        int y2 = toInt(sizeCell * (p[n].y + y + 1));
+
+                        if (dLeftRight[0])
+                            g.setColor(Color.PINK);
+                        else if (maskSquares[p[n].x + x][p[n].y + y] > 0)
+                            g.setColor(Color.CYAN);
+                        else
+                            g.setColor(Color.WHITE);
+
+                        // left top corner
+                        if (x == 0 && y == 0 && c[n][0])
+                            g.fillRect(x1 + px, y1 + py, 15, 15);
+                        // right bottom corner
+                        if (x == size - 1 && y == size - 1 && c[n][2])
+                            g.fillRect(x2 + px - 15, y2 + py - 15, 15, 15);
+
+                        if (dLeftRight[1])
+                            g.setColor(Color.PINK);
+                        else if (maskSquares[p[n].x + x][p[n].y + y] > 0)
+                            g.setColor(Color.CYAN);
+                        else
+                            g.setColor(Color.WHITE);
+
+                        // left bottom corner
+                        if (x == 0 && y == size - 1 && c[n][3])
+                            g.fillRect(x1 + px, y2 + py - 15, 15, 15);
+                        // right top corner
+                        if (x == size - 1 && y == 0 && c[n][1])
+                            g.fillRect(x2 + px - 15, y1 + py, 15, 15);
+                    }
+                }
+            }
 
             // grid
-            if (form == 0) {
+            g.setColor(Color.LIGHT_GRAY);
+
+            if (form == 0 && amount == 1) {
                 if (sx == sy) {
                     drawLines(g, true, true);
                 }
@@ -218,34 +316,42 @@ public class MainFrame extends JFrame {
                 }
             }
             else { // form == 1 && maskFigures != null
-                // vertical lines
-                for (int y = 0; y < size; y++) {
-                    for (int x = 0; x < size - 1; x++) {
-                        int zx = toInt(cell * (x + 1));
-                        int z1 = toInt(cell * y);
-                        int z2 = toInt(cell * (y + 1));
+                for (int n = 0; n < amount; n++) {
+                    // vertical lines
+                    for (int y = 0; y < size; y++) {
+                        for (int x = 0; x < size - 1; x++) {
+                            if (maskFigures[p[n].x + x][p[n].y + y] == -1 && maskFigures[p[n].x + x + 1][p[n].y + y] == -1)
+                                continue;
 
-                        if (maskFigures[x][y] != maskFigures[x + 1][y])
-                            g.setStroke(stroke);
-                        else
-                            g.setStroke(thin);
+                            int x1 = toInt(sizeCell * (p[n].x + x + 1));
+                            int y1 = toInt(sizeCell * (p[n].y + y));
+                            int y2 = toInt(sizeCell * (p[n].y + y + 1));
 
-                        g.drawLine(zx + px, z1 + py, zx + px, z2 + py);
+                            if (maskFigures[p[n].x + x][p[n].y + y] != maskFigures[p[n].x + x + 1][p[n].y + y])
+                                g.setStroke(stroke);
+                            else
+                                g.setStroke(thin);
+
+                            g.drawLine(x1 + px, y1 + py, x1 + px, y2 + py);
+                        }
                     }
-                }
-                // horizontal lines
-                for (int y = 0; y < size - 1; y++) {
-                    for (int x = 0; x < size; x++) {
-                        int z1 = toInt(cell * x);
-                        int z2 = toInt(cell * (x + 1));
-                        int zy = toInt(cell * (y + 1));
+                    // horizontal lines
+                    for (int y = 0; y < size - 1; y++) {
+                        for (int x = 0; x < size; x++) {
+                            if (maskFigures[p[n].x + x][p[n].y + y] == -1 && maskFigures[p[n].x + x][p[n].y + y + 1] == -1)
+                                continue;
 
-                        if (maskFigures[x][y] != maskFigures[x][y + 1])
-                            g.setStroke(stroke);
-                        else
-                            g.setStroke(thin);
+                            int x1 = toInt(sizeCell * (p[n].x + x));
+                            int x2 = toInt(sizeCell * (p[n].x + x + 1));
+                            int y1 = toInt(sizeCell * (p[n].y + y + 1));
 
-                        g.drawLine(z1 + px, zy + py, z2 + px, zy + py);
+                            if (maskFigures[p[n].x + x][p[n].y + y] != maskFigures[p[n].x + x][p[n].y + y + 1])
+                                g.setStroke(stroke);
+                            else
+                                g.setStroke(thin);
+
+                            g.drawLine(x1 + px, y1 + py, x2 + px, y1 + py);
+                        }
                     }
                 }
             }
@@ -253,8 +359,9 @@ public class MainFrame extends JFrame {
 
         @Override
         public Dimension getMinimumSize() {
-            int s = 30 * size + 20;
-            return new Dimension(s, s);
+            int w = 30 * sizeX + 20;
+            int h = 30 * sizeY + 20;
+            return new Dimension(w, h);
         }
     }
 
@@ -267,6 +374,8 @@ public class MainFrame extends JFrame {
 
     private int[][] getMaskFigures() {
         if (form == 1 && size <= 10) {
+            sizeX = sizeY = size;
+
             switch (size) {
                 case 4:
                     return new int[][] {{1, 2, 2, 2},
@@ -327,7 +436,119 @@ public class MainFrame extends JFrame {
                                         {3, 3, 3, 3, 5, 5, 9, 9, 9, 9}};
             }
         }
+        else if (form == 0 && amount >= 1 && amount <= 5) {
+            int cx, cy;
+
+            if (diagonals == 0) {
+                cx = sy == 2 ? sx - 1 : sx;
+                cy = sx == 2 ? sy - 1 : sy;
+            }
+            else {
+                int c = Math.min(sx, sy);
+
+                cx = c;
+                cy = c;
+            }
+
+            switch (amount) {
+                case 1 :
+                    sizeX = size;
+                    sizeY = size;
+                    p = new Point[] {new Point(0, 0)};
+                    c = new boolean[][] {{false, false, false, false}};
+                    break;
+                case 2 :
+                    sizeX = size * 2 - cx;
+                    sizeY = size * 2 - cy;
+                    p = new Point[] {new Point(0, 0),
+                                     new Point(size - cx, size - cy)
+                    };
+                    c = new boolean[][] {{false, false,  true, false},
+                                         { true, false, false, false}
+                    };
+                    break;
+                case 3:
+                    sizeX = size * 2 - cx;
+                    sizeY = size * 3 - cy * 2;
+                    p = new Point[] {new Point(0, 0),
+                                     new Point(size - cx, size - cy),
+                                     new Point(0, size * 2 - cy * 2)
+                    };
+                    c = new boolean[][] {{false, false,  true, false},
+                                         { true, false, false,  true},
+                                         {false,  true, false, false}
+                    };
+                    break;
+                case 4 :
+                    sizeX = size * 2 - cx;
+                    sizeY = size * 4 - cy * 3;
+                    p = new Point[] {new Point(0, 0),
+                                     new Point(size - cx, size - cy),
+                                     new Point(0, size * 2 - cy * 2),
+                                     new Point(size - cx, size * 3 - cy * 3)
+                    };
+                    c = new boolean[][] {{false, false,  true, false},
+                                         { true, false, false,  true},
+                                         {false,  true,  true, false},
+                                         { true, false, false, false}
+                    };
+                    break;
+                case 5 :
+                    sizeX = size * 3 - cx * 2;
+                    sizeY = size * 3 - cy * 2;
+                    p = new Point[] {new Point(0, 0),
+                                     new Point(size - cx, size - cy),
+                                     new Point(0, size * 2 - cy * 2),
+                                     new Point(size * 2 - cx * 2, 0),
+                                     new Point(size * 2 - cx * 2, size * 2 - cy * 2)
+                    };
+                    c = new boolean[][] {{false, false,  true, false},
+                                         { true,  true,  true,  true},
+                                         {false,  true, false, false},
+                                         {false, false, false,  true},
+                                         { true, false, false, false}
+                    };
+                    break;
+                default:
+                    sizeX = size;
+                    sizeY = size;
+                    p = new Point[] {new Point(0, 0)};
+                    c = new boolean[][] {{false, false, false, false}};
+            }
+
+            int[][] arr = new int[sizeX][sizeY];
+
+            // fill array
+            for (int y = 0; y < sizeY; y++)
+                for (int x = 0; x < sizeX; x++)
+                    arr[x][y] = -1;
+
+            for (int n = 0, z = 1; n < amount; n++) {
+                Point pt = p[n];
+
+                for (int y = 0; y < size; y++) {
+                    if (y > 0 && y % sy == 0)
+                        z += sx;
+
+                    int z2 = z;
+
+                    for (int x = 0; x < size; x++) {
+                        if (x > 0 && x % sx == 0)
+                            z2++;
+
+                        if (arr[x + pt.x][y + pt.y] == -1)
+                            arr[x + pt.x][y + pt.y] = z2;
+                        else
+                            arr[x + pt.x][y + pt.y] += z2;
+                    }
+                }
+            }
+
+            return arr;
+        }
         else {
+            sizeX = sizeY = size;
+
             int[][] arr = new int[size][size];
 
             int z = 1;
@@ -351,7 +572,7 @@ public class MainFrame extends JFrame {
     }
 
     private int[][] getMaskSquares() {
-        int[][] arr = new int[size][size];
+        int[][] arr = new int[sizeX][sizeY];
 
         if (form == 1 || squares == 0 || sx == 1 || sy == 1)
             return arr;
@@ -360,9 +581,10 @@ public class MainFrame extends JFrame {
 
         // 1 square
         if (size == 4) {
-            for (int x = 0; x < sx; x++)
-                for (int y = 0; y < sy; y++)
-                    arr[x + 1][y + 1] = 1;
+            for (int n = 0; n < amount; n++)
+                for (int x = 0; x < sx; x++)
+                    for (int y = 0; y < sy; y++)
+                        arr[p[n].x + x + 1][p[n].y + y + 1] = 1;
         }
         // 2 squares
         else if (sx == 2 || sy == 2) {
@@ -373,18 +595,22 @@ public class MainFrame extends JFrame {
             int y2 = size - y1 - 1;
 
             if (sLeftRight[0]) {
-                for (int y = 0; y < sy; y++) {
-                    for (int x = 0; x < sx; x++) {
-                        arr[x1 + x][y1 + y] = 1;
-                        arr[x2 - x][y2 - y] = 2;
+                for (int n = 0; n < amount; n++) {
+                    for (int y = 0; y < sy; y++) {
+                        for (int x = 0; x < sx; x++) {
+                            arr[p[n].x + x1 + x][p[n].y + y1 + y] = 1;
+                            arr[p[n].x + x2 - x][p[n].y + y2 - y] = 2;
+                        }
                     }
                 }
             }
             else {
-                for (int y = 0; y < sy; y++) {
-                    for (int x = 0; x < sx; x++) {
-                        arr[x2 - x][y1 + y] = 1;
-                        arr[x1 + x][y2 - y] = 2;
+                for (int n = 0; n < amount; n++) {
+                    for (int y = 0; y < sy; y++) {
+                        for (int x = 0; x < sx; x++) {
+                            arr[p[n].x + x2 - x][p[n].y + y1 + y] = 1;
+                            arr[p[n].x + x1 + x][p[n].y + y2 - y] = 2;
+                        }
                     }
                 }
             }
@@ -397,7 +623,7 @@ public class MainFrame extends JFrame {
             int y1 = sy / 2;
             int y2 = size - y1 - 1;
 
-            if ((sx == 3 ^ sy == 3) && (sx + sy) % 2 == 1)
+            if ((sx == 3 ^ sy == 3) && (sx + sy) % 2 == 1) {
                 if (sy == 3) {
                     x1--;
                     x2++;
@@ -406,39 +632,44 @@ public class MainFrame extends JFrame {
                     y1--;
                     y2++;
                 }
+            }
 
-            for (int y = 0; y < sy; y++) {
-                for (int x = 0; x < sx; x++) {
-                    if (sLeftRight[0]) {
-                        arr[x1 + x][y1 + y] = 1;
-                        arr[x2 - x][y2 - y] = 2;
-                    }
-                    if (sLeftRight[1]) {
-                        arr[x2 - x][y1 + y] = 3;
-                        arr[x1 + x][y2 - y] = 4;
+            for (int n = 0; n < amount; n++) {
+                for (int y = 0; y < sy; y++) {
+                    for (int x = 0; x < sx; x++) {
+                        if (sLeftRight[0]) {
+                            arr[p[n].x + x1 + x][p[n].y + y1 + y] = 1;
+                            arr[p[n].x + x2 - x][p[n].y + y2 - y] = 2;
+                        }
+                        if (sLeftRight[1]) {
+                            arr[p[n].x + x2 - x][p[n].y + y1 + y] = 3;
+                            arr[p[n].x + x1 + x][p[n].y + y2 - y] = 4;
+                        }
                     }
                 }
             }
         }
         // 2-17 squares
         else {
-            for (int i = 1, m = 1, n = size; i < size; i += sx + 1, m++, n++) {
-                for (int y = 0; y < sy; y++) {
-                    int y1 = i + y;
+            for (int n = 0; n < amount; n++) {
+                for (int i = 1, a = 1, b = size; i < size; i += sx + 1, a++, b++) {
+                    for (int y = 0; y < sy; y++) {
+                        int y1 = i + y;
 
-                    for (int x = 0; x < sx; x++) {
-                        int x1 = i + x;
+                        for (int x = 0; x < sx; x++) {
+                            int x1 = i + x;
 
-                        if (sLeftRight[0])
-                            arr[x1][y1] = m;
+                            if (sLeftRight[0])
+                                arr[p[n].x + x1][p[n].y + y1] = a;
 
-                        if (sLeftRight[0] && size % 2 == 0 && m == size / 2)
-                            continue;
+                            if (sLeftRight[0] && size % 2 == 0 && a == size / 2)
+                                continue;
 
-                        if (sLeftRight[1]) {
-                            int x2 = size - x1 - 1;
+                            if (sLeftRight[1]) {
+                                int x2 = size - x1 - 1;
 
-                            arr[x2][y1] = n;
+                                arr[p[n].x + x2][p[n].y + y1] = b;
+                            }
                         }
                     }
                 }
@@ -462,15 +693,15 @@ public class MainFrame extends JFrame {
                 int x = e.getX();
                 int y = e.getY();
 
-                if (x < px || x > board+px)
+                if (x < px || x > bWidth+px)
                     return;
                 else
-                    x = toInt((x-px) / cell) + 1;
+                    x = toInt((x-px) / sizeCell) + 1;
 
-                if (y < py || y > board+py)
+                if (y < py || y > bHeight+py)
                     return;
                 else
-                    y = toInt((y-py) / cell) + 1;
+                    y = toInt((y-py) / sizeCell) + 1;
 
                 if (e.getButton() == MouseEvent.BUTTON1) {
                     JOptionPane.showMessageDialog(null,
@@ -488,13 +719,13 @@ public class MainFrame extends JFrame {
 
         form = 0;
 
-        cmbStyle = new JComboBox<>(new String[] {
+        cmbSubsquareForm = new JComboBox<>(new String[] {
                 "squares",
                 "random"
         });
 
-        cmbStyle.addActionListener((ActionEvent e) -> {
-            form = cmbStyle.getSelectedIndex();
+        cmbSubsquareForm.addActionListener((ActionEvent e) -> {
+            form = cmbSubsquareForm.getSelectedIndex();
 
             sizeChanged();
             squareChanged();
@@ -511,6 +742,9 @@ public class MainFrame extends JFrame {
 
         cmbDiagonals.addActionListener((ActionEvent e) -> {
             diagonals = cmbDiagonals.getSelectedIndex();
+
+            maskFigures = getMaskFigures();
+            maskSquares = getMaskSquares();
 
             pnlBoard.repaint();
         });
@@ -533,25 +767,39 @@ public class MainFrame extends JFrame {
             pnlBoard.repaint();
         });
 
-        chbSquaresForWholeBoard = new JCheckBox("and a lot");
-        chbSquaresForWholeBoard.setEnabled(false);
+        lotOfSquares = false;
 
-        chbSquaresForWholeBoard.addActionListener((ActionEvent e) -> {
-            lotOfSquares = chbSquaresForWholeBoard.isSelected();
+        btnLotsOfSquares = new JToggleButton("and to 4");
+        btnLotsOfSquares.setEnabled(false);
+
+        btnLotsOfSquares.addActionListener((ActionEvent e) -> {
+            buttonsUpdate();
+
             squareChanged();
         });
 
         JPanel pnlStyle = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         pnlStyle.add(new JLabel("Figures on a board are"));
-        pnlStyle.add(cmbStyle);
+        pnlStyle.add(cmbSubsquareForm);
         pnlStyle.add(new JLabel("including"));
         pnlStyle.add(cmbDiagonals);
         pnlStyle.add(new JLabel("and"));
         pnlStyle.add(cmbSquares);
-        pnlStyle.add(chbSquaresForWholeBoard);
+        pnlStyle.add(btnLotsOfSquares);
         //pnlStyle.add(new JLabel("."));
 
         add(pnlStyle, BorderLayout.SOUTH);
+
+        amount = 1;
+
+        cmbSquareAmount = new JComboBox<>(new Integer[] {1, 2, 3, 4, 5});
+        cmbSquareAmount.setEnabled(true);
+
+        cmbSquareAmount.addActionListener((ActionEvent e) -> {
+            amount = (int) cmbSquareAmount.getSelectedItem();
+
+            sizeChanged();
+        });
 
         NumberFormat format = NumberFormat.getInstance();
         NumberFormatter formatter = new NumberFormatter(format);
@@ -561,13 +809,13 @@ public class MainFrame extends JFrame {
 
         size = 9;
 
-        txtBoardSize = new JFormattedTextField(formatter);
-        txtBoardSize.setColumns(5);
-        txtBoardSize.setHorizontalAlignment(JFormattedTextField.CENTER);
-        txtBoardSize.setText("9");
+        txtSquareSize = new JFormattedTextField(formatter);
+        txtSquareSize.setColumns(5);
+        txtSquareSize.setHorizontalAlignment(JFormattedTextField.CENTER);
+        txtSquareSize.setText("9");
 
-        txtBoardSize.addActionListener((ActionEvent e) -> {
-            size = toInt(txtBoardSize.getText());
+        txtSquareSize.addActionListener((ActionEvent e) -> {
+            size = toInt(txtSquareSize.getText());
 
             sizeChanged();
             squareChanged();
@@ -575,7 +823,7 @@ public class MainFrame extends JFrame {
             sizeUpdated = true;
         });
 
-        txtBoardSize.addFocusListener(new FocusListener() {
+        txtSquareSize.addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent e) {
             }
@@ -583,7 +831,7 @@ public class MainFrame extends JFrame {
             @Override
             public void focusLost(FocusEvent e) {
                 if (!sizeUpdated) {
-                    size = toInt(txtBoardSize.getText());
+                    size = toInt(txtSquareSize.getText());
 
                     sizeChanged();
                     squareChanged();
@@ -596,15 +844,15 @@ public class MainFrame extends JFrame {
 
         sx = sy = 3;
 
-        cmbSquareSizes = new JComboBox<>(new SquareSize[] {new SquareSize(3, 3)});
-        cmbSquareSizes.setPrototypeDisplayValue(new SquareSize());
-        cmbSquareSizes.setEnabled(false);
+        cmbSubsquareSizes = new JComboBox<>(new SquareSize[] {new SquareSize(3, 3)});
+        cmbSubsquareSizes.setPrototypeDisplayValue(new SquareSize());
+        cmbSubsquareSizes.setEnabled(false);
 
-        cmbSquareSizes.addActionListener(
+        cmbSubsquareSizes.addActionListener(
                 (ActionEvent e) -> squareChanged()
         );
 
-        btnRotate = new JToggleButton("and doesn't need to rotate", false);
+        btnRotate = new JToggleButton("and isn't needed to rotate", false);
         btnRotate.setEnabled(false);
 
         btnRotate.addActionListener((ActionEvent e) -> {
@@ -613,10 +861,12 @@ public class MainFrame extends JFrame {
         });
 
         JPanel pnlSize = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        pnlSize.add(new JLabel("Each board's side's size is"));
-        pnlSize.add(txtBoardSize);
+        pnlSize.add(new JLabel("There's"));
+        pnlSize.add(cmbSquareAmount);
+        pnlSize.add(new JLabel("squares's where each side's size is"));
+        pnlSize.add(txtSquareSize);
         pnlSize.add(new JLabel("what's equivalent to"));
-        pnlSize.add(cmbSquareSizes);
+        pnlSize.add(cmbSubsquareSizes);
         pnlSize.add(btnRotate);
         //pnlSize.add(new JLabel("."));
 
@@ -625,7 +875,7 @@ public class MainFrame extends JFrame {
         button = new JButton("look for");
 
         button.addActionListener(
-                (ActionEvent e) -> findSizes(toInt(txtBoardSize.getText()))
+                (ActionEvent e) -> findSizes(toInt(txtSquareSize.getText()))
         );
 
         JPanel pnlBottom = new JPanel();
@@ -653,6 +903,7 @@ public class MainFrame extends JFrame {
 
         //pnlBoard.setPreferredSize(new Dimension(pnlBoard.getWidth()-30, pnlBoard.getWidth()-30));
         btnRotate.setPreferredSize(new Dimension(btnRotate.getWidth(), btnRotate.getHeight()));
+        btnLotsOfSquares.setPreferredSize(new Dimension(btnLotsOfSquares.getWidth(), btnLotsOfSquares.getHeight()));
 
         super.pack();
 
@@ -692,38 +943,53 @@ public class MainFrame extends JFrame {
                     break;
             }
         }
+    }
+
+    // Implementing Fisher–Yates shuffle
+    static void shuffleArray(int[] ar) {
+        Random rnd = new Random();
+
+        for (int i = ar.length - 1; i > 0; i--) {
+            int index = rnd.nextInt(i + 1);
+
+            // Simple swap
+            int a = ar[index];
+            ar[index] = ar[i];
+            ar[i] = a;
+        }
     }**/
 
     private void buttonsUpdate() {
         //Object item = cmbSquareSizes.getSelectedItem();
-        SquareSize item = (SquareSize) cmbSquareSizes.getSelectedItem();
+        SquareSize item = (SquareSize) cmbSubsquareSizes.getSelectedItem();
 
         boolean isRandom = (form == 1);
 
-        if (isRandom) {
-            lotOfSquares = false;
+        if (!isRandom && amount == 1 && squares != 0 && item != null && sx == sy) {
+            lotOfSquares = btnLotsOfSquares.isSelected();
 
-            chbSquaresForWholeBoard.setSelected(false);
-            chbSquaresForWholeBoard.setEnabled(false);
-
-            btnRotate.setText("and doesn't need to rotate");
-            btnRotate.setEnabled(false);
-        }
-        else if (!cmbSquareSizes.isEnabled() || item == null || sx == sy) {
-            if (sx != sy)
-                lotOfSquares = false;
-
-            chbSquaresForWholeBoard.setEnabled(squares != 0);
-
-            btnRotate.setText("and can't be rotated");
-            btnRotate.setEnabled(false);
+            if (!lotOfSquares)
+                btnLotsOfSquares.setText("and to 4");
+            else
+                btnLotsOfSquares.setText("and a lot");
+            btnLotsOfSquares.setEnabled(true);
         }
         else {
             lotOfSquares = false;
 
-            chbSquaresForWholeBoard.setSelected(false);
-            chbSquaresForWholeBoard.setEnabled(false);
+            btnRotate.setText("and to 4");
+            btnLotsOfSquares.setEnabled(false);
+        }
 
+        if (isRandom) {
+            btnRotate.setText("and isn't needed to rotate");
+            btnRotate.setEnabled(false);
+        }
+        else if (item == null || sx == sy) {
+            btnRotate.setText("and can't be rotated");
+            btnRotate.setEnabled(false);
+        }
+        else {
             if (!rotate)
                 btnRotate.setText("without rotation");
             else
@@ -733,10 +999,11 @@ public class MainFrame extends JFrame {
     }
 
     private void sizeChanged() {
-        cmbSquareSizes.removeAllItems();
+        cmbSubsquareSizes.removeAllItems();
 
         boolean isRandom = (form == 1);
 
+        // get subsquare's sizes
         if (size < 4) {
             size = 0;
         }
@@ -747,8 +1014,8 @@ public class MainFrame extends JFrame {
                 || size == 83 || size == 89 || size == 97) {
             if (isRandom) {
                 SquareSize item = new SquareSize(size, 1);
-                cmbSquareSizes.insertItemAt(item, 0);
-                cmbSquareSizes.setSelectedItem(item);
+                cmbSubsquareSizes.insertItemAt(item, 0);
+                cmbSubsquareSizes.setSelectedItem(item);
             }
             else {
                 size = 0;
@@ -758,11 +1025,15 @@ public class MainFrame extends JFrame {
             findSizes(size);
         }
 
-        if (cmbSquareSizes.getItemCount() == 0) {
-            if (!txtBoardSize.getText().isEmpty()) {
-                txtBoardSize.setText("");
-                txtBoardSize.requestFocusInWindow();
-                cmbSquareSizes.setEnabled(false);
+        // set control's states
+        if (cmbSubsquareSizes.getItemCount() == 0) {
+            if (!txtSquareSize.getText().isEmpty()) {
+                txtSquareSize.setText("");
+                txtSquareSize.requestFocusInWindow();
+
+                cmbSquareAmount.setEnabled(false);
+
+                cmbSubsquareSizes.setEnabled(false);
             }
         }
         else {
@@ -803,16 +1074,21 @@ public class MainFrame extends JFrame {
                 cmbDiagonals.setEnabled(false);
                 cmbSquares.setEnabled(false);
 
-                cmbSquareSizes.setEnabled(false);
+                cmbSquareAmount.setEnabled(false);
+
+                cmbSubsquareSizes.setEnabled(false);
             }
             else {
                 cmbDiagonals.setEnabled(true);
                 cmbSquares.setEnabled(true);
 
-                cmbSquareSizes.setEnabled(true);
-                cmbSquareSizes.requestFocusInWindow();
-            }
+                cmbSquareAmount.setEnabled(true);
 
+                if (cmbSubsquareSizes.getItemCount() > 1) {
+                    cmbSubsquareSizes.setEnabled(true);
+                    cmbSubsquareSizes.requestFocusInWindow();
+                }
+            }
         }
 
         buttonsUpdate();
@@ -822,7 +1098,7 @@ public class MainFrame extends JFrame {
     }
 
     private void squareChanged() {
-        SquareSize item = (SquareSize) cmbSquareSizes.getSelectedItem();
+        SquareSize item = (SquareSize) cmbSubsquareSizes.getSelectedItem();
 
         if (item != null) {
             if (!rotate) {
@@ -859,17 +1135,20 @@ public class MainFrame extends JFrame {
                 continue;
 
             item = new SquareSize(z, j);
-            cmbSquareSizes.insertItemAt(item, 0);
+            cmbSubsquareSizes.insertItemAt(item, 0);
 
             if (z == j)
                 break;
         }
 
-        cmbSquareSizes.setSelectedItem(item);
+        cmbSubsquareSizes.setSelectedItem(item);
     }
 
     private boolean[] getLeftRight(int value) {
         boolean[] arr = new boolean[2];
+
+        arr[0] = false;
+        arr[1] = false;
 
         switch (value) {
             case 1:
@@ -878,7 +1157,7 @@ public class MainFrame extends JFrame {
             case 2:
                 arr[1] = true;
                 break;
-            default:
+            case 3:
                 arr[0] = true;
                 arr[1] = true;
         }
