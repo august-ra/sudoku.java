@@ -3,6 +3,7 @@ import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.*;
 import java.text.NumberFormat;
+import java.util.Random;
 
 public class MainFrame extends JFrame {
     private final static BasicStroke stroke = new BasicStroke(3.0f);
@@ -21,22 +22,31 @@ public class MainFrame extends JFrame {
     private JFormattedTextField txtSquareSize;
     private JComboBox<SquareSize> cmbSubsquareSizes;
     private JToggleButton btnRotate;
+    //private JPanel   pnlAdditional;
+    private JComboBox<String> cmbDigitsStyle;
+    private JComboBox<String> cmbLanguage;
     private JButton button;
-
-    private int[][] maskFigures, maskSquares;
 
     // on-form settings
     private int amount, form, diagonals, squares, size, sx, sy;
     private boolean lotOfSquares, rotate;
+    private int digitsStyle, digitsLang;
 
     private boolean sizeUpdated = false;
 
     // calculated values
-    private int bWidth, bHeight, sizeX, sizeY, px, py; // paddings from top-left corner
-    private Point[] p;
-    private boolean[][] c;
-    //private int psx, psy;
-    private double sizeCell;
+    private int[][] maskFigures, maskSquares;
+    private int[][] digits;
+
+    private String[] d;        // digits' variants
+
+    private int bWidth, bHeight; // board's size in pixels
+    private int sizeX, sizeY;    // board's size in cells
+    private int px, py;          // paddings from top-left corner
+    private float sizeCell;      // cell's size
+
+    private Point[] p;           // top-left squares' beginnings
+    private boolean[][] c;       // rounding squares' corners
 
     // class for sizes
 
@@ -64,8 +74,12 @@ public class MainFrame extends JFrame {
 
     // conversation
 
-    private static String toStr(int d) {
-        return Integer.toString(d);
+    private static String toStr(Integer d) {
+        return d.toString();
+    }
+
+    private static String toStr(Float d) {
+        return d.toString();
     }
 
     private static int toInt(String s) {
@@ -77,12 +91,12 @@ public class MainFrame extends JFrame {
         }
     }
 
-    private static int toInt(Double d) {
+    private static int toInt(Float d) {
         return d.intValue();
     }
 
-    private static double toFloat(Integer d) {
-        return d.doubleValue();
+    private static float toFloat(Integer d) {
+        return d.floatValue();
     }
 
     // drawing
@@ -352,6 +366,55 @@ public class MainFrame extends JFrame {
 
                             g.drawLine(x1 + px, y1 + py, x2 + px, y1 + py);
                         }
+                    }
+                }
+            }
+
+            // digits
+            {
+                String fontName = g.getFont().getFontName();
+                String txt = toStr(size);
+
+                Font f;
+                FontMetrics m;
+
+                int fontSize = toInt(sizeCell) - 5;
+
+                while (true) {
+                    f = new Font(fontName, Font.BOLD, fontSize);
+                    m = g.getFontMetrics(f);
+
+                    if (m.stringWidth(txt) >= sizeCell - 5)
+                        fontSize--;
+                    else
+                        break;
+                }
+
+                g.setFont(f);
+                g.setColor(Color.GREEN);
+
+                for (int x = 0; x < sizeX; x++) {
+                    for (int y = 0; y < sizeY; y++) {
+                        int z = digits[x][y];
+
+                        if (z == 0)
+                            continue;
+
+                        String s;
+
+                        //if (digitsStyle == 0)
+                        //    s = toStr(z);
+                        //else
+                            s = d[z];
+
+                        float x1 = sizeCell * x;
+                        float y1 = sizeCell * y;
+                        float y2 = sizeCell * (y + 1);
+
+                        float x3 = x1 + (sizeCell - m.stringWidth(s)) / 2;
+                        float y3 = y1 + (sizeCell - m.getHeight()) / 2 + m.getAscent();
+
+                        g.drawString(s, x3 + px, y3 + py);
                     }
                 }
             }
@@ -679,6 +742,80 @@ public class MainFrame extends JFrame {
         return arr;
     }
 
+    private int[][] setUpDigits() {
+        // digits' variants
+        d = new String[size + 1];
+
+        if (digitsStyle == 0) {
+            for (int z = 1, z1 = -1, z2 = 0; z <= size; z++)
+                d[z] = toStr(z);
+        }
+        else {
+            char[] chars;
+            int len;
+
+            if (digitsLang == 0) {
+                chars = new char[]{
+                        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+                        'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
+                        'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+                };
+                len = 25;
+            }
+            else {
+                chars = new char[]{
+                        'А', 'Б', 'В', 'Г', 'Д', 'Е', /*'Ё',*/ 'Ж', 'З',
+                        'И', /*'Й',*/ 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р',
+                        'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ',
+                        'Ъ', 'Ы', 'Ь', 'Э', 'Ю', 'Я'
+                };
+                len = 31;
+            }
+
+            int z = 1, z1 = -1, z2 = 0;
+
+            if (digitsStyle == 1)
+                for (; z <= size && z <= 9; z++)
+                    d[z] = toStr(z);
+
+            if (size > 9 || digitsStyle == 2) {
+                for (; z <= size; z++) {
+                    if (z1 == -1)
+                        d[z] = "" + chars[z2];
+                    else
+                        d[z] = "" + chars[z1] + chars[z2];
+
+                    z2++;
+
+                    if (z2 >= len) {
+                        z2 = 0;
+                        z1++;
+                    }
+                }
+            }
+        }
+
+        int[][] arr = new int[sizeX][sizeY];
+
+        Random rndX = new Random();
+        Random rndY = new Random();
+        Random rnd = new Random();
+
+        for (int z = 0; z < 40; ) {
+            int x = rndX.nextInt(sizeX);
+            int y = rndY.nextInt(sizeY);
+
+            if (maskFigures[x][y] == -1)
+                continue;
+
+            arr[x][y] = rnd.nextInt(size) + 1;
+
+            z++;
+        }
+
+        return arr;
+    }
+
     private MainFrame() {
         super("Sudoku");
 
@@ -715,7 +852,7 @@ public class MainFrame extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(pnlBoard, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
-        add(scrollPane);//, BorderLayout.CENTER);
+        add(scrollPane);
 
         form = 0;
 
@@ -726,6 +863,11 @@ public class MainFrame extends JFrame {
 
         cmbSubsquareForm.addActionListener((ActionEvent e) -> {
             form = cmbSubsquareForm.getSelectedIndex();
+
+            if (form == 0 && isPrime(size)) {
+                size = 9;
+                txtSquareSize.setText("9");
+            }
 
             sizeChanged();
             squareChanged();
@@ -745,6 +887,8 @@ public class MainFrame extends JFrame {
 
             maskFigures = getMaskFigures();
             maskSquares = getMaskSquares();
+
+            digits = setUpDigits();
 
             pnlBoard.repaint();
         });
@@ -787,8 +931,6 @@ public class MainFrame extends JFrame {
         pnlStyle.add(cmbSquares);
         pnlStyle.add(btnLotsOfSquares);
         //pnlStyle.add(new JLabel("."));
-
-        add(pnlStyle, BorderLayout.SOUTH);
 
         amount = 1;
 
@@ -870,13 +1012,61 @@ public class MainFrame extends JFrame {
         pnlSize.add(btnRotate);
         //pnlSize.add(new JLabel("."));
 
-        add(pnlSize, BorderLayout.SOUTH);
+        digitsStyle = 0;
+
+        cmbDigitsStyle = new JComboBox<>(new String[] {
+                "digits",
+                "digits and letters",
+                "letters"
+        });
+
+        cmbDigitsStyle.addActionListener((ActionEvent e) -> {
+            int old = digitsStyle;
+
+            digitsStyle = cmbDigitsStyle.getSelectedIndex();
+
+            if (digitsStyle == 1 && size == 9) {
+                cmbDigitsStyle.setSelectedIndex(0);
+                digitsStyle = 0;
+
+                Toolkit.getDefaultToolkit().beep();
+            }
+
+            if (old == digitsStyle)
+                return;
+
+            cmbLanguage.setEnabled(digitsStyle != 0);
+
+            digits = setUpDigits();
+
+            pnlBoard.repaint();
+        });
+
+        digitsLang = 0;
+
+        cmbLanguage = new JComboBox<>(new String[] {
+                "english",
+                "russian"
+        });
+
+        cmbLanguage.addActionListener((ActionEvent e) -> {
+            digitsLang = cmbLanguage.getSelectedIndex();
+
+            digits = setUpDigits();
+
+            pnlBoard.repaint();
+        });
 
         button = new JButton("look for");
 
         button.addActionListener(
                 (ActionEvent e) -> findSizes(toInt(txtSquareSize.getText()))
         );
+
+        JPanel pnlAdditional = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        pnlAdditional.add(cmbDigitsStyle);
+        pnlAdditional.add(cmbLanguage);
+        pnlAdditional.add(button);
 
         JPanel pnlBottom = new JPanel();
         pnlBottom.setLayout(new BoxLayout(pnlBottom, BoxLayout.PAGE_AXIS));
@@ -885,12 +1075,14 @@ public class MainFrame extends JFrame {
         pnlBottom.add(Box.createRigidArea(new Dimension(8, 0)));
         pnlBottom.add(pnlSize);
         pnlBottom.add(Box.createRigidArea(new Dimension(8, 0)));
-        pnlBottom.add(button);
+        pnlBottom.add(pnlAdditional);
 
         add(pnlBottom, BorderLayout.SOUTH);
 
         maskFigures = getMaskFigures();
         maskSquares = getMaskSquares();
+
+        digits = setUpDigits();
 
         pnlBoard.repaint();
 
@@ -959,6 +1151,14 @@ public class MainFrame extends JFrame {
         }
     }**/
 
+    private boolean isPrime(int d) {
+        return (d ==  5 || d ==  7 || d == 11 || d == 13 || d == 17 ||
+                d == 19 || d == 23 || d == 29 || d == 31 || d == 37 ||
+                d == 41 || d == 43 || d == 47 || d == 53 || d == 59 ||
+                d == 61 || d == 67 || d == 71 || d == 73 || d == 79 ||
+                d == 83 || d == 89 || d == 97);
+    }
+
     private void buttonsUpdate() {
         //Object item = cmbSquareSizes.getSelectedItem();
         SquareSize item = (SquareSize) cmbSubsquareSizes.getSelectedItem();
@@ -1007,11 +1207,7 @@ public class MainFrame extends JFrame {
         if (size < 4) {
             size = 0;
         }
-        else if (size == 5 || size == 7 || size == 11 || size == 13 || size == 17
-                || size == 19 || size == 23 || size == 29 || size == 31 || size == 37
-                || size == 41 || size == 43 || size == 47 || size == 53 || size == 59
-                || size == 61 || size == 67 || size == 71 || size == 73 || size == 79
-                || size == 83 || size == 89 || size == 97) {
+        else if (isPrime(size)) {
             if (isRandom) {
                 SquareSize item = new SquareSize(size, 1);
                 cmbSubsquareSizes.insertItemAt(item, 0);
@@ -1095,6 +1291,8 @@ public class MainFrame extends JFrame {
 
         maskFigures = getMaskFigures();
         maskSquares = getMaskSquares();
+
+        digits = setUpDigits();
     }
 
     private void squareChanged() {
@@ -1114,6 +1312,8 @@ public class MainFrame extends JFrame {
 
             maskFigures = getMaskFigures();
             maskSquares = getMaskSquares();
+
+            digits = setUpDigits();
 
             pnlBoard.repaint();
         }
