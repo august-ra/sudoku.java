@@ -78,10 +78,6 @@ public class MainFrame extends JFrame {
         return d.toString();
     }
 
-    private static String toStr(Float d) {
-        return d.toString();
-    }
-
     private static int toInt(String s) {
         try {
             return Integer.valueOf(s);
@@ -409,7 +405,6 @@ public class MainFrame extends JFrame {
 
                         float x1 = sizeCell * x;
                         float y1 = sizeCell * y;
-                        float y2 = sizeCell * (y + 1);
 
                         float x3 = x1 + (sizeCell - m.stringWidth(s)) / 2;
                         float y3 = y1 + (sizeCell - m.getHeight()) / 2 + m.getAscent();
@@ -747,7 +742,7 @@ public class MainFrame extends JFrame {
         d = new String[size + 1];
 
         if (digitsStyle == 0) {
-            for (int z = 1, z1 = -1, z2 = 0; z <= size; z++)
+            for (int z = 1; z <= size; z++)
                 d[z] = toStr(z);
         }
         else {
