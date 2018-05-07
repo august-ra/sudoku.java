@@ -2,7 +2,9 @@ import javax.swing.*;
 import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.*;
+import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class MainFrame extends JFrame {
@@ -15,20 +17,21 @@ public class MainFrame extends JFrame {
     //private JPanel   pnlStyle;
     private JComboBox<String> cmbSubsquareForm;
     private JComboBox<String> cmbDiagonals;
-    private JComboBox<String> cmbSquares;
-    private JToggleButton btnLotsOfSquares;
+    private JComboBox<String> cmbSubsquares;
+    private JToggleButton btnLotsOfSubsquares;
     //private JPanel   pnlSize;
     private JComboBox<Integer> cmbSquareAmount;
     private JFormattedTextField txtSquareSize;
     private JComboBox<SquareSize> cmbSubsquareSizes;
     private JToggleButton btnRotate;
     //private JPanel   pnlAdditional;
+    private JTextField    txtCellSize;
     private JComboBox<String> cmbDigitsStyle;
     private JComboBox<String> cmbLanguage;
-    private JButton button;
+    private JButton       btnStart;
 
     // on-form settings
-    private int amount, form, diagonals, squares, size, sx, sy;
+    private int amount, form, diagonals, subsquares, size, sx, sy;
     private boolean lotOfSquares, rotate;
     private int digitsStyle, digitsLang;
 
@@ -38,7 +41,7 @@ public class MainFrame extends JFrame {
     private int[][] maskFigures, maskSquares;
     private int[][] digits;
 
-    private String[] d;        // digits' variants
+    private String[] a;          // digits' alphabet
 
     private int bWidth, bHeight; // board's size in pixels
     private int sizeX, sizeY;    // board's size in cells
@@ -46,7 +49,11 @@ public class MainFrame extends JFrame {
     private float sizeCell;      // cell's size
 
     private Point[] p;           // top-left squares' beginnings
+    private Point[] s;           // top-left subsquares' corners
     private boolean[][] c;       // rounding squares' corners
+
+    private boolean[] dLeftRight;
+    private boolean[] sLeftRight;
 
     // class for sizes
 
@@ -98,39 +105,60 @@ public class MainFrame extends JFrame {
     // drawing
 
     private class JBoard extends JPanel {
-        private void setStroke(Graphics2D g, int i, int s) {
+        Graphics2D g;
+        private Font f;
+        private FontMetrics m;
+
+        private void setStroke(int i, int s) {
             if (i % s == 0)
                 g.setStroke(stroke);
             else
                 g.setStroke(thin);
         }
 
-        private void drawLines(Graphics2D g,
-                               boolean horizontal,
+        private void drawLines(boolean horizontal,
                                boolean vertical) {
             for (int n = 0; n < amount; n++) {
                 for (int i = 1; i < size; i++) {
                     if (vertical) {
                         int x = toInt(sizeCell * (p[n].x + i));
 
-                        setStroke(g, i, sx);
+                        setStroke(i, sx);
                         g.drawLine(x + px, toInt(sizeCell * p[n].y) + py, x + px, toInt(sizeCell * (p[n].y + size)) + py);
                     }
                     if (horizontal) {
                         int y = toInt(sizeCell * (p[n].y + i));
 
-                        setStroke(g, i, sy);
+                        setStroke(i, sy);
                         g.drawLine(toInt(sizeCell * p[n].x) + px, y + py, toInt(sizeCell * (p[n].x + size)) + px, y + py);
                     }
                 }
             }
         }
 
+        private void drawDigit(int x, int y, int z) {
+            if (g == null)
+                return;
+
+            if (z == 0)
+                return;
+
+            String s = a[z];
+
+            float x1 = sizeCell * x;
+            float y1 = sizeCell * y;
+
+            float x3 = x1 + (sizeCell - m.stringWidth(s)) / 2;
+            float y3 = y1 + (sizeCell - m.getHeight()) / 2 + m.getAscent();
+
+            g.drawString(s, x3 + px, y3 + py);
+        }
+
         @Override
         protected void paintComponent(Graphics g2) {
             super.paintComponent(g2);
 
-            Graphics2D g = (Graphics2D) g2;
+            g = (Graphics2D) g2;
 
             px = py = 10;
 
@@ -146,6 +174,8 @@ public class MainFrame extends JFrame {
                 sizeCell = 30;
             else if (sizeCell > 45)
                 sizeCell = 45;
+
+            txtCellSize.setText(new DecimalFormat("#.00").format(sizeCell));
 
             bWidth = toInt(sizeCell * sizeX);
             bHeight = toInt(sizeCell * sizeY);
@@ -171,11 +201,9 @@ public class MainFrame extends JFrame {
                     g.fillRoundRect(x1 + px, y1 + py, wi, he, 15, 15);
             }
 
-            boolean[] dLeftRight = getLeftRight(diagonals);
-
             // diagonals and squares
             if (form == 0) {
-                if (squares > 0) {
+                if (subsquares > 0) {
                     g.setColor(Color.CYAN);
 
                     for (int n = 0; n < amount; n++) {
@@ -318,11 +346,11 @@ public class MainFrame extends JFrame {
 
             if (form == 0 && amount == 1) {
                 if (sx == sy) {
-                    drawLines(g, true, true);
+                    drawLines(true, true);
                 }
                 else {
-                    drawLines(g, true, false);
-                    drawLines(g, false, true);
+                    drawLines(true, false);
+                    drawLines(false, true);
                 }
             }
             else { // form == 1 && maskFigures != null
@@ -371,9 +399,6 @@ public class MainFrame extends JFrame {
                 String fontName = g.getFont().getFontName();
                 String txt = toStr(size);
 
-                Font f;
-                FontMetrics m;
-
                 int fontSize = toInt(sizeCell) - 5;
 
                 while (true) {
@@ -393,23 +418,7 @@ public class MainFrame extends JFrame {
                     for (int y = 0; y < sizeY; y++) {
                         int z = digits[x][y];
 
-                        if (z == 0)
-                            continue;
-
-                        String s;
-
-                        //if (digitsStyle == 0)
-                        //    s = toStr(z);
-                        //else
-                            s = d[z];
-
-                        float x1 = sizeCell * x;
-                        float y1 = sizeCell * y;
-
-                        float x3 = x1 + (sizeCell - m.stringWidth(s)) / 2;
-                        float y3 = y1 + (sizeCell - m.getHeight()) / 2 + m.getAscent();
-
-                        g.drawString(s, x3 + px, y3 + py);
+                        drawDigit(x, y, z);
                     }
                 }
             }
@@ -423,12 +432,16 @@ public class MainFrame extends JFrame {
         }
     }
 
+    // this class
+
     public static void main(String[] args) {
         MainFrame app = new MainFrame();
         //app.setExtendedState(JFrame.MAXIMIZED_BOTH);
         app.setVisible(true);
         app.pack();
     }
+
+    // generation
 
     private int[][] getMaskFigures() {
         if (form == 1 && size <= 10) {
@@ -509,13 +522,13 @@ public class MainFrame extends JFrame {
             }
 
             switch (amount) {
-                case 1 :
+                case 1:
                     sizeX = size;
                     sizeY = size;
                     p = new Point[] {new Point(0, 0)};
                     c = new boolean[][] {{false, false, false, false}};
                     break;
-                case 2 :
+                case 2:
                     sizeX = size * 2 - cx;
                     sizeY = size * 2 - cy;
                     p = new Point[] {new Point(0, 0),
@@ -537,7 +550,7 @@ public class MainFrame extends JFrame {
                                          {false,  true, false, false}
                     };
                     break;
-                case 4 :
+                case 4:
                     sizeX = size * 2 - cx;
                     sizeY = size * 4 - cy * 3;
                     p = new Point[] {new Point(0, 0),
@@ -551,7 +564,7 @@ public class MainFrame extends JFrame {
                                          { true, false, false, false}
                     };
                     break;
-                case 5 :
+                case 5:
                     sizeX = size * 3 - cx * 2;
                     sizeY = size * 3 - cy * 2;
                     p = new Point[] {new Point(0, 0),
@@ -632,54 +645,53 @@ public class MainFrame extends JFrame {
     private int[][] getMaskSquares() {
         int[][] arr = new int[sizeX][sizeY];
 
-        if (form == 1 || squares == 0 || sx == 1 || sy == 1)
+        if (form == 1 || subsquares == 0 || sx == 1 || sy == 1)
             return arr;
 
-        boolean[] sLeftRight = getLeftRight(squares);
+        ArrayList<Point> list = new ArrayList<>();
 
-        // 1 square
+        // 1 subsquare
         if (size == 4) {
+            list.add(new Point(1, 1));
+
             for (int n = 0; n < amount; n++)
                 for (int x = 0; x < sx; x++)
                     for (int y = 0; y < sy; y++)
                         arr[p[n].x + x + 1][p[n].y + y + 1] = 1;
         }
-        // 2 squares
+        // 2 subsquares
         else if (sx == 2 || sy == 2) {
             int x1 = sx / 2;
-            int x2 = size - x1 - 1;
+            int x2 = size - x1 - sx;
 
             int y1 = sy / 2;
-            int y2 = size - y1 - 1;
+            int y2 = size - y1 - sy;
 
-            if (sLeftRight[0]) {
-                for (int n = 0; n < amount; n++) {
-                    for (int y = 0; y < sy; y++) {
-                        for (int x = 0; x < sx; x++) {
-                            arr[p[n].x + x1 + x][p[n].y + y1 + y] = 1;
-                            arr[p[n].x + x2 - x][p[n].y + y2 - y] = 2;
-                        }
-                    }
-                }
+            if (!sLeftRight[0]) {
+                int x3 = x1;
+                x1 = x2;
+                x2 = x3;
             }
-            else {
-                for (int n = 0; n < amount; n++) {
-                    for (int y = 0; y < sy; y++) {
-                        for (int x = 0; x < sx; x++) {
-                            arr[p[n].x + x2 - x][p[n].y + y1 + y] = 1;
-                            arr[p[n].x + x1 + x][p[n].y + y2 - y] = 2;
-                        }
+
+            list.add(new Point(x1, y1));
+            list.add(new Point(x2, y2));
+
+            for (int n = 0; n < amount; n++) {
+                for (int y = 0; y < sy; y++) {
+                    for (int x = 0; x < sx; x++) {
+                        arr[p[n].x + x1 + x][p[n].y + y1 + y] = 1;
+                        arr[p[n].x + x2 + x][p[n].y + y2 + y] = 2;
                     }
                 }
             }
         }
-        // 2-4 squares
+        // 2-4 subsquares
         else if (!lotOfSquares) {
             int x1 = sx / 2;
-            int x2 = size - x1 - 1;
+            int x2 = size - x1 - sx;
 
             int y1 = sy / 2;
-            int y2 = size - y1 - 1;
+            int y2 = size - y1 - sy;
 
             if ((sx == 3 ^ sy == 3) && (sx + sy) % 2 == 1) {
                 if (sy == 3) {
@@ -692,25 +704,40 @@ public class MainFrame extends JFrame {
                 }
             }
 
+            if (sLeftRight[0]) {
+                list.add(new Point(x1, y1));
+                list.add(new Point(x2, y2));
+            }
+            if (sLeftRight[1]) {
+                list.add(new Point(x2, y1));
+                list.add(new Point(x1, y2));
+            }
+
             for (int n = 0; n < amount; n++) {
                 for (int y = 0; y < sy; y++) {
                     for (int x = 0; x < sx; x++) {
                         if (sLeftRight[0]) {
                             arr[p[n].x + x1 + x][p[n].y + y1 + y] = 1;
-                            arr[p[n].x + x2 - x][p[n].y + y2 - y] = 2;
+                            arr[p[n].x + x2 + x][p[n].y + y2 + y] = 2;
                         }
                         if (sLeftRight[1]) {
-                            arr[p[n].x + x2 - x][p[n].y + y1 + y] = 3;
-                            arr[p[n].x + x1 + x][p[n].y + y2 - y] = 4;
+                            arr[p[n].x + x2 + x][p[n].y + y1 + y] = 3;
+                            arr[p[n].x + x1 + x][p[n].y + y2 + y] = 4;
                         }
                     }
                 }
             }
         }
-        // 2-17 squares
+        // 2-17 subsquares
         else {
-            for (int n = 0; n < amount; n++) {
-                for (int i = 1, a = 1, b = size; i < size; i += sx + 1, a++, b++) {
+            for (int i = 1, a = 1, b = size; i < size; i += sx + 1, a++, b++) {
+                if (sLeftRight[0])
+                    list.add(new Point(i, i));
+
+                if (sLeftRight[1] && !(sLeftRight[0] && size % 2 == 0 && a == size / 2))
+                    list.add(new Point(size - i - sx, i));
+
+                for (int n = 0; n < amount; n++) {
                     for (int y = 0; y < sy; y++) {
                         int y1 = i + y;
 
@@ -720,11 +747,12 @@ public class MainFrame extends JFrame {
                             if (sLeftRight[0])
                                 arr[p[n].x + x1][p[n].y + y1] = a;
 
+                            // center subsquare
                             if (sLeftRight[0] && size % 2 == 0 && a == size / 2)
                                 continue;
 
                             if (sLeftRight[1]) {
-                                int x2 = size - x1 - 1;
+                                int x2 = size - i - sx + x;
 
                                 arr[p[n].x + x2][p[n].y + y1] = b;
                             }
@@ -734,16 +762,16 @@ public class MainFrame extends JFrame {
             }
         }
 
+        s = list.toArray(new Point[0]);
         return arr;
     }
 
-    private int[][] setUpDigits() {
-        // digits' variants
-        d = new String[size + 1];
+    private void getAlphabet() {
+        a = new String[size + 1];
 
         if (digitsStyle == 0) {
             for (int z = 1; z <= size; z++)
-                d[z] = toStr(z);
+                a[z] = toStr(z);
         }
         else {
             char[] chars;
@@ -771,14 +799,14 @@ public class MainFrame extends JFrame {
 
             if (digitsStyle == 1)
                 for (; z <= size && z <= 9; z++)
-                    d[z] = toStr(z);
+                    a[z] = toStr(z);
 
             if (size > 9 || digitsStyle == 2) {
                 for (; z <= size; z++) {
                     if (z1 == -1)
-                        d[z] = "" + chars[z2];
+                        a[z] = "" + chars[z2];
                     else
-                        d[z] = "" + chars[z1] + chars[z2];
+                        a[z] = "" + chars[z1] + chars[z2];
 
                     z2++;
 
@@ -789,6 +817,10 @@ public class MainFrame extends JFrame {
                 }
             }
         }
+    }
+
+    private int[][] setUpDigits() {
+        getAlphabet();
 
         int[][] arr = new int[sizeX][sizeY];
 
@@ -796,19 +828,76 @@ public class MainFrame extends JFrame {
         Random rndY = new Random();
         Random rnd = new Random();
 
-        for (int z = 0; z < 40; ) {
-            int x = rndX.nextInt(sizeX);
-            int y = rndY.nextInt(sizeY);
+        int max;
 
-            if (maskFigures[x][y] == -1)
-                continue;
+        if (diagonals == 3 && subsquares > 0 || subsquares == 3)
+            max = size;
+        else
+            max = size * size / 2;
 
-            arr[x][y] = rnd.nextInt(size) + 1;
+        for (int n = 0; n < amount; n++) {
+            int max2 = max;
 
-            z++;
+            for (int x = 0; x < size; x++)
+                for (int y = 0; y < size; y++)
+                    if (arr[p[n].x + x][p[n].y + y] > 0)
+                        max2--;
+
+            for (int z = 0; z < max2; ) {
+                // TODO miss joint cells
+
+                int x = rndX.nextInt(sizeX);
+                int y = rndY.nextInt(sizeY);
+
+                if (maskFigures[x][y] == -1)
+                    continue;
+
+                if (safeFill(arr, n, x, y, rnd.nextInt(size) + 1))
+                    z++;
+            }
         }
 
         return arr;
+    }
+
+    private boolean safeFill(int[][] game, int n, int x, int y, int d) {
+        // cell(x, y)
+        if (game[x][y] != 0)
+            return false;
+
+        // row(y)
+        for (int x1 = 0; x1 < size; x1++)
+            if (game[x1][y] == d)
+                return false;
+
+        // column(x)
+        for (int y1 = 0; y1 < size; y1++)
+            if (game[x][y1] == d)
+                return false;
+
+        // diagonal(left)
+        if (dLeftRight[0] && x == y)
+            for (int x1 = 0; x1 < size; x1++)
+                if (game[x1][x1] == d)
+                    return false;
+
+        // diagonal(right)
+        if (dLeftRight[1] && size - x - 1 == y)
+            for (int x1 = 0; x1 < size; x1++)
+                if (game[size - x1 - 1][x1] == d)
+                    return false;
+
+        // subsquares
+//            if (subsquares > 0)
+//                for (Point elem : s)
+//                    for (int x1 = 0; x1 < sx; x1++)
+//                        for (int y1 = 0; y1 < sy; y1++)
+//                            if (game[elem.x + x1][elem.y + y1] == d)
+//                                return false;
+
+        game[x][y] = d;
+
+        return true;
     }
 
     private MainFrame() {
@@ -825,22 +914,28 @@ public class MainFrame extends JFrame {
                 int x = e.getX();
                 int y = e.getY();
 
-                if (x < px || x > bWidth+px)
+                if (x < px || x > bWidth + px)
                     return;
                 else
-                    x = toInt((x-px) / sizeCell) + 1;
+                    x = toInt((x - px) / sizeCell);
 
                 if (y < py || y > bHeight+py)
                     return;
                 else
-                    y = toInt((y-py) / sizeCell) + 1;
+                    y = toInt((y - py) / sizeCell);
+
+                if (maskFigures[x][y] == -1)
+                    return;
+
+                x++;
+                y++;
 
                 if (e.getButton() == MouseEvent.BUTTON1) {
                     JOptionPane.showMessageDialog(null,
                             toStr(x) + " ; " + toStr(y),
                             "some",
                             JOptionPane.INFORMATION_MESSAGE);
-                    // TO-DO: edit digits in cells
+                    // TODO edit digits in cells
                 }
             }
         });
@@ -869,6 +964,7 @@ public class MainFrame extends JFrame {
         });
 
         diagonals = 0;
+        dLeftRight = new boolean[] {false, false};
 
         cmbDiagonals = new JComboBox<>(new String[] {
                 "neither diagonals",
@@ -879,6 +975,7 @@ public class MainFrame extends JFrame {
 
         cmbDiagonals.addActionListener((ActionEvent e) -> {
             diagonals = cmbDiagonals.getSelectedIndex();
+            dLeftRight = getLeftRight(diagonals);
 
             maskFigures = getMaskFigures();
             maskSquares = getMaskSquares();
@@ -888,17 +985,20 @@ public class MainFrame extends JFrame {
             pnlBoard.repaint();
         });
 
-        squares = 0;
+        subsquares = 0;
+        sLeftRight = new boolean[] {false, false};
 
-        cmbSquares = new JComboBox<>(new String[] {
+        cmbSubsquares = new JComboBox<>(new String[] {
                 "neither squares",
                 "left square",
                 "right square",
                 "both squares"
         });
 
-        cmbSquares.addActionListener((ActionEvent e) -> {
-            squares = cmbSquares.getSelectedIndex();
+        cmbSubsquares.addActionListener((ActionEvent e) -> {
+            subsquares = cmbSubsquares.getSelectedIndex();
+            sLeftRight = getLeftRight(subsquares);
+
             maskSquares = getMaskSquares();
 
             buttonsUpdate();
@@ -908,10 +1008,10 @@ public class MainFrame extends JFrame {
 
         lotOfSquares = false;
 
-        btnLotsOfSquares = new JToggleButton("and to 4");
-        btnLotsOfSquares.setEnabled(false);
+        btnLotsOfSubsquares = new JToggleButton("and to 4");
+        btnLotsOfSubsquares.setEnabled(false);
 
-        btnLotsOfSquares.addActionListener((ActionEvent e) -> {
+        btnLotsOfSubsquares.addActionListener((ActionEvent e) -> {
             buttonsUpdate();
 
             squareChanged();
@@ -923,8 +1023,8 @@ public class MainFrame extends JFrame {
         pnlStyle.add(new JLabel("including"));
         pnlStyle.add(cmbDiagonals);
         pnlStyle.add(new JLabel("and"));
-        pnlStyle.add(cmbSquares);
-        pnlStyle.add(btnLotsOfSquares);
+        pnlStyle.add(cmbSubsquares);
+        pnlStyle.add(btnLotsOfSubsquares);
         //pnlStyle.add(new JLabel("."));
 
         amount = 1;
@@ -1007,6 +1107,11 @@ public class MainFrame extends JFrame {
         pnlSize.add(btnRotate);
         //pnlSize.add(new JLabel("."));
 
+        txtCellSize = new JTextField("");
+        txtCellSize.setColumns(5);
+        txtCellSize.setHorizontalAlignment(JTextField.CENTER);
+        txtCellSize.setEnabled(false);
+
         digitsStyle = 0;
 
         cmbDigitsStyle = new JComboBox<>(new String[] {
@@ -1052,16 +1157,20 @@ public class MainFrame extends JFrame {
             pnlBoard.repaint();
         });
 
-        button = new JButton("look for");
+        btnStart = new JButton("START GAME WITH THE SETTINGS");
 
-        button.addActionListener(
-                (ActionEvent e) -> findSizes(toInt(txtSquareSize.getText()))
+        btnStart.addActionListener(
+                (ActionEvent e) -> JOptionPane.showMessageDialog(this, "STARTED")
         );
 
         JPanel pnlAdditional = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        pnlAdditional.add(new JLabel("Size of cells are"));
+        pnlAdditional.add(txtCellSize);
+        pnlAdditional.add(new JLabel("and there are"));
         pnlAdditional.add(cmbDigitsStyle);
         pnlAdditional.add(cmbLanguage);
-        pnlAdditional.add(button);
+        pnlAdditional.add(new JLabel("into cells"));
+        pnlAdditional.add(btnStart);
 
         JPanel pnlBottom = new JPanel();
         pnlBottom.setLayout(new BoxLayout(pnlBottom, BoxLayout.PAGE_AXIS));
@@ -1073,6 +1182,19 @@ public class MainFrame extends JFrame {
         pnlBottom.add(pnlAdditional);
 
         add(pnlBottom, BorderLayout.SOUTH);
+
+        JRootPane rootPane = SwingUtilities.getRootPane(this);
+        rootPane.setDefaultButton(btnStart);
+
+        rootPane.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
+                    System.exit(0);
+                else
+                    super.keyTyped(e);
+            }
+        });
 
         maskFigures = getMaskFigures();
         maskSquares = getMaskSquares();
@@ -1090,7 +1212,7 @@ public class MainFrame extends JFrame {
 
         //pnlBoard.setPreferredSize(new Dimension(pnlBoard.getWidth()-30, pnlBoard.getWidth()-30));
         btnRotate.setPreferredSize(new Dimension(btnRotate.getWidth(), btnRotate.getHeight()));
-        btnLotsOfSquares.setPreferredSize(new Dimension(btnLotsOfSquares.getWidth(), btnLotsOfSquares.getHeight()));
+        btnLotsOfSubsquares.setPreferredSize(new Dimension(btnLotsOfSubsquares.getWidth(), btnLotsOfSubsquares.getHeight()));
 
         super.pack();
 
@@ -1146,6 +1268,8 @@ public class MainFrame extends JFrame {
         }
     }**/
 
+    // testing
+
     private boolean isPrime(int d) {
         return (d ==  5 || d ==  7 || d == 11 || d == 13 || d == 17 ||
                 d == 19 || d == 23 || d == 29 || d == 31 || d == 37 ||
@@ -1160,20 +1284,20 @@ public class MainFrame extends JFrame {
 
         boolean isRandom = (form == 1);
 
-        if (!isRandom && amount == 1 && squares != 0 && item != null && sx == sy) {
-            lotOfSquares = btnLotsOfSquares.isSelected();
+        if (!isRandom && amount == 1 && subsquares != 0 && item != null && sx == sy) {
+            lotOfSquares = btnLotsOfSubsquares.isSelected();
 
             if (!lotOfSquares)
-                btnLotsOfSquares.setText("and to 4");
+                btnLotsOfSubsquares.setText("and to 4");
             else
-                btnLotsOfSquares.setText("and a lot");
-            btnLotsOfSquares.setEnabled(true);
+                btnLotsOfSubsquares.setText("and a lot");
+            btnLotsOfSubsquares.setEnabled(true);
         }
         else {
             lotOfSquares = false;
 
             btnRotate.setText("and to 4");
-            btnLotsOfSquares.setEnabled(false);
+            btnLotsOfSubsquares.setEnabled(false);
         }
 
         if (isRandom) {
@@ -1263,7 +1387,7 @@ public class MainFrame extends JFrame {
 
             if (isRandom) {
                 cmbDiagonals.setEnabled(false);
-                cmbSquares.setEnabled(false);
+                cmbSubsquares.setEnabled(false);
 
                 cmbSquareAmount.setEnabled(false);
 
@@ -1271,7 +1395,7 @@ public class MainFrame extends JFrame {
             }
             else {
                 cmbDiagonals.setEnabled(true);
-                cmbSquares.setEnabled(true);
+                cmbSubsquares.setEnabled(true);
 
                 cmbSquareAmount.setEnabled(true);
 
@@ -1340,10 +1464,7 @@ public class MainFrame extends JFrame {
     }
 
     private boolean[] getLeftRight(int value) {
-        boolean[] arr = new boolean[2];
-
-        arr[0] = false;
-        arr[1] = false;
+        boolean[] arr = new boolean[] {false, false};
 
         switch (value) {
             case 1:
