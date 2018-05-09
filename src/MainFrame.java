@@ -11,6 +11,8 @@ public class MainFrame extends JFrame {
     private final static BasicStroke stroke = new BasicStroke(3.0f);
     private final static BasicStroke thin   = new BasicStroke(1.0f);
 
+    private final Generator game = new Generator();
+
     //private JScrollPane scrollPane;
     private JBoard pnlBoard;
     //private JPanel pnlBottom;
@@ -860,107 +862,511 @@ public class MainFrame extends JFrame {
         return a;
     }
 
-    private int[][] setUpDigits() {
-        int[][] arr = new int[sizeX][sizeY];
+    private class Page {
+        int[][][] data;
+        int       step;
 
-        Random rndX = new Random();
-        Random rndY = new Random();
-        Random rnd = new Random();
+        private Page() {
+            data = new int[sizeX][sizeY][size + 1];
+            //step = s;
+        }
 
-        int max;
+        private Page(int[][][] d) {
+            data = d;
+        }
 
-        if (diagonals == 3 && subsquares > 0 || subsquares == 3)
-            max = size;
-        else
-            max = size * size / 2;
+        int[][][] copy() {
+            int[][][] res = new int[sizeX][sizeY][size + 1];
 
-        for (int n = 0; n < amount; n++) {
-            int max2 = max;
+            for (int x = 0; x < sizeX; x++)
+                for (int y = 0; y < sizeY; y++)
+                    System.arraycopy(data[x][y], 0, res[x][y], 0, data[x][y].length);
+            //for (int z = 0; z <= size; z++)
+            //    res[x][y][z] = data[x][y][z];
 
-            for (int x = joints[n].x1; x < joints[n].x2; x++)
-                for (int y = joints[n].y1; y < joints[n].y2; y++)
-                    if (arr[x][y] > 0)
-                        max2--;
+            return res;
+        }
 
-            for (int z = 0; z < max2; ) {
-                int x = rnd.nextInt(size) + p[n].x;
-                int y = rnd.nextInt(size) + p[n].y;
+        private Page setDigit(int x, int y, int d, boolean newPage) {
+            if (newPage) {
+                // use the variant
+                data[x][y][d + 1] = 1;
 
-                if (x >= joints[n].x1 && x < joints[n].x2
-                        && y >= joints[n].y1 && y < joints[n].y2)
-                    continue;
+                // [x][y][0] = digit
+                // [x][y][digit] = filled {false, true}
+                int[][][] res = copy();
 
-                if (maskFigures[x][y] == -1)
-                    continue;
+                // set digit
+                res[x][y][0] = d + 1;
 
-                if (safeFill(arr, n, x, y, rnd.nextInt(size) + 1))
-                    z++;
+                // current cell for other digits
+                for (int d1 = 1; d1 <= size; d1++)
+                    res[x][y][d1] = 1;
+
+                // current column for the digit
+                for (int y1 = 0; y1 < size; y1++)
+                    res[x][y1][d + 1] = 1;
+
+                // current row for the digit
+                for (int x1 = 0; x1 < size; x1++)
+                    res[x1][y][d + 1] = 1;
+
+                // current figure for the digit
+                if (form == 1) {
+                    int z = maskFigures[x][y];
+
+                    for (int x1 = 0; x1 < size; x1++)
+                        for (int y1 = 0; y1 < size; y1++)
+                            if (maskFigures[x1][y1] == z)
+                                res[x1][y1][d + 1] = 1;
+                }
+                else {
+                    int x2 = x / sy * sy;
+                    int y2 = y / sx * sx;
+
+                    for (int x1 = 0; x1 < sx; x1++)
+                        for (int y1 = 0; y1 < sy; y1++)
+                            res[x1 + x2][y1 + y2][d + 1] = 1;
+                }
+
+                // current diagonal for the digit
+                if (dLeftRight[0] && x == y)
+                    for (int x1 = 0; x1 < size; x1++)
+                        res[x1][x1][d + 1] = 1;
+                if (dLeftRight[1] && x == y)
+                    for (int x1 = 0; x1 < size; x1++)
+                        res[size - x1 - 1][x1][d + 1] = 1;
+
+                // current subsquare for the digit
+//                if (subsquares > 0) {
+//                    for (Point elem : s)
+//                        for (int x1 = 0; x1 < sx; x1++)
+//                            for (int y1 = 0; y1 < sy; y1++)
+//                                if (res[elem.x + x1][elem.y + y1][d + 1] == d)
+//                }
+
+                pnlBoard.drawDigit(x, y, d + 1);
+
+                return new Page(res);
+            }
+            else {
+                // set digit
+                data[x][y][0] = d + 1;
+
+                return this;
             }
         }
 
-        return arr;
+        private int[][] getGame() {
+            int[][] res = new int[sizeX][sizeY];
+
+            for (int x = 0; x < size; x++)
+                for (int y = 0; y < size; y++)
+                    res[x][y] = data[x][y][0];
+
+            return res;
+        }
+
+        private ArrayList<String> printArray() {
+            ArrayList<String> list = new ArrayList<>();
+
+            for (int y = 0; y < size; y++) {
+                StringBuilder s = new StringBuilder();
+
+                for (int x = 0; x < size; x++)
+                    s.append(" ").append(data[x][y][0]);
+
+                list.add(s.toString());
+            }
+
+            return list;
+        }
+
+        private boolean safeFill(int n, int x, int y, int d) {
+            // cell(x, y)
+            if (data[x][y][0] != 0)
+                return false;
+
+            // row(y)
+            for (int x1 = 0; x1 < size; x1++)
+                if (data[x1][y][0] == d)
+                    return false;
+
+            // column(x)
+            for (int y1 = 0; y1 < size; y1++)
+                if (data[x][y1][0] == d)
+                    return false;
+
+            // figure
+            if (form == 1) {
+                int z = maskFigures[x][y];
+
+                for (int x1 = 0; x1 < size; x1++)
+                    for (int y1 = 0; y1 < size; y1++)
+                        if (maskFigures[p[n].x + x1][p[n].y + y1] == z
+                                && data[p[n].x + x1][p[n].y + y1][0] == d)
+                            return false;
+            }
+            else {
+                int x2 = (x - p[n].x) / sx * sx + p[n].x;
+                int y2 = (y - p[n].y) / sy * sy + p[n].y;
+
+                for (int x1 = 0; x1 < sx; x1++)
+                    for (int y1 = 0; y1 < sy; y1++)
+                        if (data[x1 + x2][y1 + y2][0] == d)
+                            return false;
+            }
+
+            // diagonal(left)
+            if (dLeftRight[0] && x == y)
+                for (int x1 = 0; x1 < size; x1++)
+                    if (data[x1][x1][0] == d)
+                        return false;
+
+            // diagonal(right)
+            if (dLeftRight[1] && size - x - 1 == y)
+                for (int x1 = 0; x1 < size; x1++)
+                    if (data[size - x1 - 1][x1][0] == d)
+                        return false;
+
+            // subsquares
+//            if (subsquares > 0)
+//                for (Point elem : s)
+//                    for (int x1 = 0; x1 < sx; x1++)
+//                        for (int y1 = 0; y1 < sy; y1++)
+//                            if (data[elem.x + x1][elem.y + y1][0] == d)
+//                                return false;
+
+            data[x][y][0] = d;
+
+            return true;
+        }
+
+        private boolean isPossibleCell(int x, int y, int d) {
+            return data[x][y][d + 1] == 0;
+        }
+
+        private boolean isFilledDiagonal(int d, boolean left) {
+            if (left) {
+                for (int x = 0; x < size; x++)
+                    if (data[x][x][0] == d + 1)
+                        return true;
+            }
+            else {
+                for (int x = 0; x < size; x++)
+                    if (data[size - x - 1][x][0] == d + 1)
+                        return true;
+            }
+
+            return false;
+        }
+
+        private boolean isFilledSubsquare(int d, Point elem) {
+            for (int x = 0; x < sx; x++)
+                for (int y = 0; y < sx; y++)
+                    if (data[elem.x + x][elem.y + y][0] == d + 1)
+                        return true;
+
+            return false;
+        }
+
+        private boolean isFilledColumn(int x, int d) {
+            for (int y1 = 0; y1 < size; y1++)
+                if (data[x][y1][0] == d + 1)
+                    return true;
+
+            return false;
+        }
     }
 
-    private boolean safeFill(int[][] game, int n, int x, int y, int d) {
-        // cell(x, y)
-        if (game[x][y] != 0)
-            return false;
+    private class Pages {
+        ArrayList<Page> data;
+        Page            last;
 
-        // row(y)
-        for (int x1 = 0; x1 < size; x1++)
-            if (game[p[n].x + x1][y] == d)
-                return false;
+        private Pages() {
+            data = new ArrayList<>();
 
-        // column(x)
-        for (int y1 = 0; y1 < size; y1++)
-            if (game[x][p[n].y + y1] == d)
-                return false;
-
-        // figure
-        if (form == 1) {
-            int z = maskFigures[x][y];
-
-            for (int x1 = 0; x1 < size; x1++)
-                for (int y1 = 0; y1 < size; y1++)
-                    if (maskFigures[p[n].x + x1][p[n].y + y1] == z
-                            && game[p[n].x + x1][p[n].y + y1] == d)
-                        return false;
-        }
-        else {
-            int x2 = (x - p[n].x) / sx * sx + p[n].x;
-            int y2 = (y - p[n].y) / sy * sy + p[n].y;
-
-            for (int x1 = 0; x1 < sx; x1++)
-                for (int y1 = 0; y1 < sy; y1++)
-                    if (game[x1 + x2][y1 + y2] == d)
-                        return false;
+            last = new Page();
+            data.add(last);
         }
 
-        // diagonal(left)
-        if (dLeftRight[0] && x == y)
+        private Page deleteLast() {
+            data.remove(last);
+
+            int z = data.size() - 1;
+
+            if (z >= 0)
+                last = data.get(z);
+            else {
+                last = null;
+                System.out.println("Nothing is in 'pages'!");
+                System.exit(-1);
+            }
+
+            return last;
+        }
+
+        private void setDigit(int x, int y, int d, boolean newPage) {
+            last = last.setDigit(x, y, d, newPage);
+            data.add(last);
+        }
+
+        private int[][] getGame() {
+            return last.getGame();
+        }
+
+        private ArrayList<String> printArray() {
+            return last.printArray();
+        }
+
+        private boolean safeFill(int n, int x, int y, int d) {
+            return last.safeFill(n, x, y, d);
+        }
+
+        private boolean isPossibleCell(int x, int y, int d) {
+            return last.isPossibleCell(x, y, d);
+        }
+
+        private boolean isFilledDiagonal(int d, boolean left) {
+            return last.isFilledDiagonal(d, left);
+        }
+
+        private boolean isFilledSubsquare(int d, Point elem) {
+            return last.isFilledSubsquare(d, elem);
+        }
+
+        private boolean isFilledColumn(int x, int d) {
+            return last.isFilledColumn(x, d);
+        }
+    }
+
+    private ArrayList<String> printArray(int[][] arr) {
+        ArrayList<String> list = new ArrayList<>();
+
+        for (int y = 0; y < size; y++) {
+            StringBuilder s = new StringBuilder();
+
+            for (int x = 0; x < size; x++)
+                s.append(" ").append(arr[x][y]);
+
+            list.add(s.toString());
+        }
+
+        return list;
+    }
+
+    private class Generator {
+        Pages pages;
+        int   step;
+
+        final Random rnd = new Random();
+
+        private int[][] setUpDigits(boolean real) {
+            if (!real) {
+                int[][] arr = new int[sizeX][sizeY];
+
+                int max;
+
+                if (diagonals == 3 && subsquares > 0 || subsquares == 3)
+                    max = size;
+                else
+                    max = size * size / 2;
+
+                for (int n = 0; n < amount; n++) {
+                    int max2 = max;
+
+                    for (int x = joints[n].x1; x < joints[n].x2; x++)
+                        for (int y = joints[n].y1; y < joints[n].y2; y++)
+                            if (arr[x][y] > 0)
+                                max2--;
+
+                    for (int z = 0; z < max2; ) {
+                        int x = rnd.nextInt(size) + p[n].x;
+                        int y = rnd.nextInt(size) + p[n].y;
+
+                        if (x >= joints[n].x1 && x < joints[n].x2
+                                && y >= joints[n].y1 && y < joints[n].y2)
+                            continue;
+
+                        if (maskFigures[x][y] == -1)
+                            continue;
+
+                        if (safeFill(arr, n, x, y, rnd.nextInt(size) + 1))
+                            z++;
+                    }
+                }
+
+                return arr;
+            }
+            else {
+                step = goToNextStep(0);
+
+                for (int n = 0; n < amount; n++) {
+                    pages = new Pages();
+
+                    // step 1 - center
+                    if (diagonals == 3 && size % 2 == 1) {
+                        int d = rnd.nextInt(size);
+                        int c = size / 2;
+
+                        pages.setDigit(p[n].x + c, p[n].x + c, d, true);
+                    }
+
+                    for (int d = 0; d < size; d++) {
+                        // setting last digit is easy
+                        if (d == size - 1) {
+                            for (int x = 0; x < size; x++)
+                                for (int y = 0; y < size; y++)
+                                    if (pages.isPossibleCell(x, y, d))
+                                        pages.setDigit(x, y, d, false);
+                            break;
+                        }
+
+//                        // step 2 - left diagonal
+//                        if (dLeftRight[0]) {
+//                            if (!pages.isFilledDiagonal(d, true))
+//                                //
+//                                continue;
+//                        }
+//                        // step 3 - right diagonal
+//                        if (dLeftRight[1]) {
+//                            if (!pages.isFilledDiagonal(d, false))
+//                                //
+//                                continue;
+//                        }
+//
+//                        // step 4 - subsquares
+//                        if (subsquares > 0) {
+//                            for (Point elem : s)
+//                                if (!pages.isFilledSubsquare(d, elem))
+//                                    //
+//                                    continue;
+//                        }
+
+                        // step 5 - columns
+                        for (int x = 0; x < size; x++) {
+                            if (pages.isFilledColumn(p[n].x + x, d))
+                                continue;
+
+                            ArrayList<Integer> list = new ArrayList<>();
+
+                            for (int y = 0; y < size; y++)
+                                if (pages.isPossibleCell(x, y, d))
+                                    list.add(y);
+
+                            int z = list.size();
+
+                            if (z > 0) {
+                                int y = list.get(rnd.nextInt(z));
+
+                                pages.setDigit(x, y, d, true);
+                            }
+                            else {
+                                // draw back
+                                x -= 2;
+                                pages.deleteLast();
+
+                                if (x < 0) {
+                                    d -= 2;
+
+                                    if (d < 0) {
+                                        System.out.println("It couldn't set " + toStr(d + 1));
+                                        return pages.getGame();
+                                    }
+
+                                    x = size - 1;
+                                    pages.deleteLast();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return pages.getGame();
+            }
+        }
+
+        private int goToNextStep(int step) {
+            switch (step) {
+                case 0:
+                    if (diagonals == 3 && size % 2 == 1)
+                        return 1; // center
+                case 1:
+                    if (dLeftRight[0])
+                        return 2; // left diagonal
+                case 2:
+                    if (dLeftRight[1])
+                        return 3; // right diagonal
+                case 3:
+                    if (subsquares > 0)
+                        return 4; // squares ???
+                case 4:
+                default:
+                    return 5;     // cell
+            }
+        }
+
+        private boolean safeFill(int[][] game, int n, int x, int y, int d) {
+            // cell(x, y)
+            if (game[x][y] != 0)
+                return false;
+
+            // row(y)
             for (int x1 = 0; x1 < size; x1++)
-                if (game[p[n].x + x1][p[n].y + x1] == d)
+                if (game[p[n].x + x1][y] == d)
                     return false;
 
-        // diagonal(right)
-        if (dLeftRight[1] && size - x - 1 == y)
-            for (int x1 = 0; x1 < size; x1++)
-                if (game[p[n].x + size - x1 - 1][p[n].y + x1] == d)
+            // column(x)
+            for (int y1 = 0; y1 < size; y1++)
+                if (game[x][p[n].y + y1] == d)
                     return false;
 
-        // subsquares
-        if (subsquares > 0)
-            for (Point elem : s)
-                if (x >= elem.x && x < elem.x + sx
-                        && y >= elem.y && y < elem.y + sy)
-                    for (int x1 = 0; x1 < sx; x1++)
-                        for (int y1 = 0; y1 < sy; y1++)
-                            if (game[p[n].x + elem.x + x1][p[n].y + elem.y + y1] == d)
-                                return false;
+            // figure
+            if (form == 1) {
+                int z = maskFigures[x][y];
 
-        game[x][y] = d;
+                for (int x1 = 0; x1 < size; x1++)
+                    for (int y1 = 0; y1 < size; y1++)
+                        if (maskFigures[p[n].x + x1][p[n].y + y1] == z
+                                && game[p[n].x + x1][p[n].y + y1] == d)
+                            return false;
+            }
+            else {
+                int x2 = (x - p[n].x) / sx * sx + p[n].x;
+                int y2 = (y - p[n].y) / sy * sy + p[n].y;
 
-        return true;
+                for (int x1 = 0; x1 < sx; x1++)
+                    for (int y1 = 0; y1 < sy; y1++)
+                        if (game[x1 + x2][y1 + y2] == d)
+                            return false;
+            }
+
+            // diagonal(left)
+            if (dLeftRight[0] && x == y)
+                for (int x1 = 0; x1 < size; x1++)
+                    if (game[p[n].x + x1][p[n].y + x1] == d)
+                        return false;
+
+            // diagonal(right)
+            if (dLeftRight[1] && size - x - 1 == y)
+                for (int x1 = 0; x1 < size; x1++)
+                    if (game[p[n].x + size - x1 - 1][p[n].y + x1] == d)
+                        return false;
+
+            // subsquares
+            if (subsquares > 0)
+                for (Point elem : s)
+                    if (x >= elem.x && x < elem.x + sx
+                            && y >= elem.y && y < elem.y + sy)
+                        for (int x1 = 0; x1 < sx; x1++)
+                            for (int y1 = 0; y1 < sy; y1++)
+                                if (game[p[n].x + elem.x + x1][p[n].y + elem.y + y1] == d)
+                                    return false;
+
+            game[x][y] = d;
+
+            return true;
+        }
     }
 
     private MainFrame() {
@@ -1043,7 +1449,7 @@ public class MainFrame extends JFrame {
             maskFigures = getMaskFigures();
             maskSquares = getMaskSquares();
 
-            digits = setUpDigits();
+            digits = game.setUpDigits(false);
 
             pnlBoard.repaint();
         });
@@ -1066,7 +1472,7 @@ public class MainFrame extends JFrame {
 
             buttonsUpdate();
 
-            digits = setUpDigits();
+            digits = game.setUpDigits(false);
 
             pnlBoard.repaint();
         });
@@ -1267,7 +1673,7 @@ public class MainFrame extends JFrame {
         maskSquares = getMaskSquares();
 
         a = getAlphabet();
-        digits = setUpDigits();
+        digits = game.setUpDigits(false);
 
         pnlBoard.repaint();
 
@@ -1449,7 +1855,7 @@ public class MainFrame extends JFrame {
         maskSquares = getMaskSquares();
 
         a = getAlphabet();
-        digits = setUpDigits();
+        digits = game.setUpDigits(false);
     }
 
     private void squareChanged() {
@@ -1471,7 +1877,7 @@ public class MainFrame extends JFrame {
             maskSquares = getMaskSquares();
 
             a = getAlphabet();
-            digits = setUpDigits();
+            digits = game.setUpDigits(false);
 
             pnlBoard.repaint();
         }
