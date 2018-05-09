@@ -1,3 +1,5 @@
+import Sudoku.*;
+
 import javax.swing.*;
 import javax.swing.text.NumberFormatter;
 import java.awt.*;
@@ -58,73 +60,6 @@ public class MainFrame extends JFrame {
     private boolean[] dLeftRight;
     private boolean[] sLeftRight;
 
-    // class for sizes
-
-    private class SquareSize {
-        private int x;
-        private int y;
-
-        private SquareSize(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-
-        private SquareSize() {
-            this.x = 0;
-            this.y = 0;
-        }
-
-        public String toString() {
-            if (x > 0 && y > 0)
-                return toStr(this.x) + " × " + toStr(this.y);
-            else
-                return "_______";
-        }
-    }
-
-    // class for figures' joints
-
-    private class Area {
-        private int x1;
-        private int y1;
-        private int x2;
-        private int y2;
-
-        private Area(int x1, int y1, int x2, int y2) {
-            this.x1 = x1;
-            this.y1 = y1;
-            this.x2 = x2;
-            this.y2 = y2;
-        }
-
-        public String toString() {
-            return getClass().getName() + "[x1=" + x1 + ",y1=" + y1 + ",x2=" + x2 + ",y2=" + y2 + "]";
-        }
-    }
-
-    // conversation
-
-    private static String toStr(Integer d) {
-        return d.toString();
-    }
-
-    private static int toInt(String s) {
-        try {
-            return Integer.valueOf(s);
-        }
-        catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private static int toInt(Float d) {
-        return d.intValue();
-    }
-
-    private static float toFloat(Integer d) {
-        return d.floatValue();
-    }
-
     // drawing
 
     private class JBoard extends JPanel {
@@ -144,16 +79,16 @@ public class MainFrame extends JFrame {
             for (int n = 0; n < amount; n++) {
                 for (int i = 1; i < size; i++) {
                     if (vertical) {
-                        int x = toInt(sizeCell * (p[n].x + i));
+                        int x = Converters.toInt(sizeCell * (p[n].x + i));
 
                         setStroke(i, sx);
-                        g.drawLine(x + px, toInt(sizeCell * p[n].y) + py, x + px, toInt(sizeCell * (p[n].y + size)) + py);
+                        g.drawLine(x + px, Converters.toInt(sizeCell * p[n].y) + py, x + px, Converters.toInt(sizeCell * (p[n].y + size)) + py);
                     }
                     if (horizontal) {
-                        int y = toInt(sizeCell * (p[n].y + i));
+                        int y = Converters.toInt(sizeCell * (p[n].y + i));
 
                         setStroke(i, sy);
-                        g.drawLine(toInt(sizeCell * p[n].x) + px, y + py, toInt(sizeCell * (p[n].x + size)) + px, y + py);
+                        g.drawLine(Converters.toInt(sizeCell * p[n].x) + px, y + py, Converters.toInt(sizeCell * (p[n].x + size)) + px, y + py);
                     }
                 }
             }
@@ -189,19 +124,19 @@ public class MainFrame extends JFrame {
             int h = getHeight() - 2 * py;
 
             if (amount == 1)
-                sizeCell = Math.min(toFloat(w) / size, toFloat(h) / size);
+                sizeCell = Math.min(Converters.toFloat(w) / size, Converters.toFloat(h) / size);
             else
-                sizeCell = Math.min(toFloat(w) / sizeX, toFloat(h) / sizeY);
+                sizeCell = Math.min(Converters.toFloat(w) / sizeX, Converters.toFloat(h) / sizeY);
 
             if (sizeCell < 30)
                 sizeCell = 30;
-            else if (sizeCell > 45)
-                sizeCell = 45;
+            else if (sizeCell > 65)
+                sizeCell = 65;
 
             txtCellSize.setText(new DecimalFormat("#.00").format(sizeCell));
 
-            bWidth = toInt(sizeCell * sizeX);
-            bHeight = toInt(sizeCell * sizeY);
+            bWidth = Converters.toInt(sizeCell * sizeX);
+            bHeight = Converters.toInt(sizeCell * sizeY);
 
             px = (w - bWidth) / 2 + px;
             py = (h - bHeight) / 2 + py;
@@ -211,10 +146,10 @@ public class MainFrame extends JFrame {
             //g.fillRoundRect(px, py, bWidth, bHeight, 15, 15);
 
             for (int n = 0; n < amount; n++) {
-                int x1 = toInt(sizeCell * p[n].x);
-                int x2 = toInt(sizeCell * (p[n].x + size));
-                int y1 = toInt(sizeCell * p[n].y);
-                int y2 = toInt(sizeCell * (p[n].y + size));
+                int x1 = Converters.toInt(sizeCell * p[n].x);
+                int x2 = Converters.toInt(sizeCell * (p[n].x + size));
+                int y1 = Converters.toInt(sizeCell * p[n].y);
+                int y2 = Converters.toInt(sizeCell * (p[n].y + size));
                 int wi = x2 - x1;
                 int he = y2 - y1;
 
@@ -231,13 +166,13 @@ public class MainFrame extends JFrame {
 
                     for (int n = 0; n < amount; n++) {
                         for (int x = 0; x < size; x++) {
-                            int x1 = toInt(sizeCell * (p[n].x + x));
-                            int x2 = toInt(sizeCell * (p[n].x + x + 1));
+                            int x1 = Converters.toInt(sizeCell * (p[n].x + x));
+                            int x2 = Converters.toInt(sizeCell * (p[n].x + x + 1));
                             int wi = x2 - x1;
 
                             for (int y = 0; y < size; y++) {
-                                int y1 = toInt(sizeCell * (p[n].y + y));
-                                int y2 = toInt(sizeCell * (p[n].y + y + 1));
+                                int y1 = Converters.toInt(sizeCell * (p[n].y + y));
+                                int y2 = Converters.toInt(sizeCell * (p[n].y + y + 1));
                                 int he = y2 - y1;
 
                                 if (maskSquares[p[n].x + x][p[n].y + y] > 0)
@@ -250,14 +185,14 @@ public class MainFrame extends JFrame {
                 if (diagonals > 0) {
                     for (int n = 0; n < amount; n++) {
                         for (int i = 0; i < size; i++) {
-                            int x1 = toInt(sizeCell * (p[n].x + i));
-                            int x2 = toInt(sizeCell * (p[n].x + size - i - 1));
-                            int x3 = toInt(sizeCell * (p[n].x + i + 1));
-                            int x4 = toInt(sizeCell * (p[n].x + size - i));
-                            int y1 = toInt(sizeCell * (p[n].y + i));
-                            int y2 = toInt(sizeCell * (p[n].y + size - i - 1));
-                            int y3 = toInt(sizeCell * (p[n].y + i + 1));
-                            int y4 = toInt(sizeCell * (p[n].y + size - i));
+                            int x1 = Converters.toInt(sizeCell * (p[n].x + i));
+                            int x2 = Converters.toInt(sizeCell * (p[n].x + size - i - 1));
+                            int x3 = Converters.toInt(sizeCell * (p[n].x + i + 1));
+                            int x4 = Converters.toInt(sizeCell * (p[n].x + size - i));
+                            int y1 = Converters.toInt(sizeCell * (p[n].y + i));
+                            int y2 = Converters.toInt(sizeCell * (p[n].y + size - i - 1));
+                            int y3 = Converters.toInt(sizeCell * (p[n].y + i + 1));
+                            int y4 = Converters.toInt(sizeCell * (p[n].y + size - i));
                             int wi1 = x3 - x1;
                             int wi2 = x4 - x2;
                             int he1 = y3 - y1;
@@ -304,10 +239,10 @@ public class MainFrame extends JFrame {
             //g.drawRoundRect(px, py, bWidth, bHeight, 15, 15);
 
             for (int n = 0; n < amount; n++) {
-                int x1 = toInt(sizeCell * p[n].x);
-                int x2 = toInt(sizeCell * (p[n].x + size));
-                int y1 = toInt(sizeCell * p[n].y);
-                int y2 = toInt(sizeCell * (p[n].y + size));
+                int x1 = Converters.toInt(sizeCell * p[n].x);
+                int x2 = Converters.toInt(sizeCell * (p[n].x + size));
+                int y1 = Converters.toInt(sizeCell * p[n].y);
+                int y2 = Converters.toInt(sizeCell * (p[n].y + size));
                 int wi = x2 - x1;
                 int he = y2 - y1;
 
@@ -327,11 +262,11 @@ public class MainFrame extends JFrame {
                         if (x == 1)
                             x = size - 1;
 
-                        int x1 = toInt(sizeCell * (p[n].x + x));
-                        int x2 = toInt(sizeCell * (p[n].x + x + 1));
+                        int x1 = Converters.toInt(sizeCell * (p[n].x + x));
+                        int x2 = Converters.toInt(sizeCell * (p[n].x + x + 1));
 
-                        int y1 = toInt(sizeCell * (p[n].y + y));
-                        int y2 = toInt(sizeCell * (p[n].y + y + 1));
+                        int y1 = Converters.toInt(sizeCell * (p[n].y + y));
+                        int y2 = Converters.toInt(sizeCell * (p[n].y + y + 1));
 
                         if (dLeftRight[0])
                             g.setColor(Color.PINK);
@@ -384,9 +319,9 @@ public class MainFrame extends JFrame {
                             if (maskFigures[p[n].x + x][p[n].y + y] == -1 && maskFigures[p[n].x + x + 1][p[n].y + y] == -1)
                                 continue;
 
-                            int x1 = toInt(sizeCell * (p[n].x + x + 1));
-                            int y1 = toInt(sizeCell * (p[n].y + y));
-                            int y2 = toInt(sizeCell * (p[n].y + y + 1));
+                            int x1 = Converters.toInt(sizeCell * (p[n].x + x + 1));
+                            int y1 = Converters.toInt(sizeCell * (p[n].y + y));
+                            int y2 = Converters.toInt(sizeCell * (p[n].y + y + 1));
 
                             if (maskFigures[p[n].x + x][p[n].y + y] != maskFigures[p[n].x + x + 1][p[n].y + y])
                                 g.setStroke(stroke);
@@ -402,9 +337,9 @@ public class MainFrame extends JFrame {
                             if (maskFigures[p[n].x + x][p[n].y + y] == -1 && maskFigures[p[n].x + x][p[n].y + y + 1] == -1)
                                 continue;
 
-                            int x1 = toInt(sizeCell * (p[n].x + x));
-                            int x2 = toInt(sizeCell * (p[n].x + x + 1));
-                            int y1 = toInt(sizeCell * (p[n].y + y + 1));
+                            int x1 = Converters.toInt(sizeCell * (p[n].x + x));
+                            int x2 = Converters.toInt(sizeCell * (p[n].x + x + 1));
+                            int y1 = Converters.toInt(sizeCell * (p[n].y + y + 1));
 
                             if (maskFigures[p[n].x + x][p[n].y + y] != maskFigures[p[n].x + x][p[n].y + y + 1])
                                 g.setStroke(stroke);
@@ -420,9 +355,9 @@ public class MainFrame extends JFrame {
             // digits
             {
                 String fontName = g.getFont().getFontName();
-                String txt      = toStr(size);
+                String txt      = Converters.toStr(size);
 
-                int fontSize = toInt(sizeCell) - 5;
+                int fontSize = Converters.toInt(sizeCell) - 5;
                 f = new Font(fontName, Font.BOLD, fontSize);
                 m = g.getFontMetrics(f);
 
@@ -812,7 +747,7 @@ public class MainFrame extends JFrame {
 
         if (digitsStyle == 0) {
             for (int z = 1; z <= size; z++)
-                a[z] = toStr(z);
+                a[z] = Converters.toStr(z);
         }
         else {
             char[] chars;
@@ -840,7 +775,7 @@ public class MainFrame extends JFrame {
 
             if (digitsStyle == 1)
                 for (; z <= size && z <= 9; z++)
-                    a[z] = toStr(z);
+                    a[z] = Converters.toStr(z);
 
             if (size > 9 || digitsStyle == 2) {
                 for (; z <= size; z++) {
@@ -1270,7 +1205,7 @@ public class MainFrame extends JFrame {
                                     d -= 2;
 
                                     if (d < 0) {
-                                        System.out.println("It couldn't set " + toStr(d + 1));
+                                        System.out.println("It couldn't set " + Converters.toStr(d + 1));
                                         return pages.getGame();
                                     }
 
@@ -1386,12 +1321,12 @@ public class MainFrame extends JFrame {
                 if (x < px || x > bWidth + px)
                     return;
                 else
-                    x = toInt((x - px) / sizeCell);
+                    x = Converters.toInt((x - px) / sizeCell);
 
                 if (y < py || y > bHeight + py)
                     return;
                 else
-                    y = toInt((y - py) / sizeCell);
+                    y = Converters.toInt((y - py) / sizeCell);
 
                 if (maskFigures[x][y] == -1)
                     return;
@@ -1401,7 +1336,7 @@ public class MainFrame extends JFrame {
 
                 if (e.getButton() == MouseEvent.BUTTON1) {
                     JOptionPane.showMessageDialog(null,
-                            toStr(x) + " ; " + toStr(y),
+                            Converters.toStr(x) + " ; " + Converters.toStr(y),
                             "some",
                             JOptionPane.INFORMATION_MESSAGE);
                     // TODO: edit digits in cells
@@ -1523,7 +1458,7 @@ public class MainFrame extends JFrame {
         txtSquareSize.setText("9");
 
         txtSquareSize.addActionListener((ActionEvent e) -> {
-            size = toInt(txtSquareSize.getText());
+            size = Converters.toInt(txtSquareSize.getText());
 
             sizeChanged();
             squareChanged();
@@ -1539,7 +1474,7 @@ public class MainFrame extends JFrame {
             @Override
             public void focusLost(FocusEvent e) {
                 if (!sizeUpdated) {
-                    size = toInt(txtSquareSize.getText());
+                    size = Converters.toInt(txtSquareSize.getText());
 
                     sizeChanged();
                     squareChanged();
