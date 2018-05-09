@@ -421,16 +421,15 @@ public class MainFrame extends JFrame {
                 String txt      = toStr(size);
 
                 int fontSize = toInt(sizeCell) - 5;
+                f = new Font(fontName, Font.BOLD, fontSize);
+                m = g.getFontMetrics(f);
 
-                while (true) {
-                    f = new Font(fontName, Font.BOLD, fontSize);
-                    m = g.getFontMetrics(f);
-
-                    if (m.stringWidth(txt) >= sizeCell - 5)
+                if (digitsStyle == 0)
+                    while (m.stringWidth(txt) >= sizeCell - 5) {
                         fontSize--;
-                    else
-                        break;
-                }
+                        f = new Font(fontName, Font.BOLD, fontSize);
+                        m = g.getFontMetrics(f);
+                    }
 
                 g.setFont(f);
                 g.setColor(Color.GREEN);
@@ -806,8 +805,8 @@ public class MainFrame extends JFrame {
         return arr;
     }
 
-    private void getAlphabet() {
-        a = new String[size + 1];
+    private String[] getAlphabet() {
+        String[] a = new String[size + 1];
 
         if (digitsStyle == 0) {
             for (int z = 1; z <= size; z++)
@@ -857,11 +856,11 @@ public class MainFrame extends JFrame {
                 }
             }
         }
+
+        return a;
     }
 
     private int[][] setUpDigits() {
-        getAlphabet();
-
         int[][] arr = new int[sizeX][sizeY];
 
         Random rndX = new Random();
@@ -999,7 +998,7 @@ public class MainFrame extends JFrame {
                             toStr(x) + " ; " + toStr(y),
                             "some",
                             JOptionPane.INFORMATION_MESSAGE);
-                    // TODO edit digits in cells
+                    // TODO: edit digits in cells
                 }
             }
         });
@@ -1066,6 +1065,8 @@ public class MainFrame extends JFrame {
             maskSquares = getMaskSquares();
 
             buttonsUpdate();
+
+            digits = setUpDigits();
 
             pnlBoard.repaint();
         });
@@ -1201,7 +1202,7 @@ public class MainFrame extends JFrame {
 
             cmbLanguage.setEnabled(digitsStyle != 0);
 
-            digits = setUpDigits();
+            a = getAlphabet();
 
             pnlBoard.repaint();
         });
@@ -1216,16 +1217,18 @@ public class MainFrame extends JFrame {
         cmbLanguage.addActionListener((ActionEvent e) -> {
             digitsLang = cmbLanguage.getSelectedIndex();
 
-            digits = setUpDigits();
+            a = getAlphabet();
 
             pnlBoard.repaint();
         });
 
-        btnStart = new JButton("START GAME WITH THE SETTINGS");
+        btnStart = new JButton("START A GAME WITH THE SETTINGS");
 
-        btnStart.addActionListener(
-                (ActionEvent e) -> JOptionPane.showMessageDialog(this, "STARTED")
-        );
+        btnStart.addActionListener((ActionEvent e) -> {
+            btnStart.setText("STOP THE GAME");
+
+            JOptionPane.showMessageDialog(this, "STARTED");
+        });
 
         JPanel pnlAdditional = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         pnlAdditional.add(new JLabel("Size of cells are"));
@@ -1263,6 +1266,7 @@ public class MainFrame extends JFrame {
         maskFigures = getMaskFigures();
         maskSquares = getMaskSquares();
 
+        a = getAlphabet();
         digits = setUpDigits();
 
         pnlBoard.repaint();
@@ -1444,6 +1448,7 @@ public class MainFrame extends JFrame {
         maskFigures = getMaskFigures();
         maskSquares = getMaskSquares();
 
+        a = getAlphabet();
         digits = setUpDigits();
     }
 
@@ -1465,6 +1470,7 @@ public class MainFrame extends JFrame {
             maskFigures = getMaskFigures();
             maskSquares = getMaskSquares();
 
+            a = getAlphabet();
             digits = setUpDigits();
 
             pnlBoard.repaint();
