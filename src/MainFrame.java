@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class MainFrame extends JFrame {
     private final static BasicStroke stroke = new BasicStroke(3.0f);
-    private final static BasicStroke thin = new BasicStroke(1.0f);
+    private final static BasicStroke thin   = new BasicStroke(1.0f);
 
     //private JScrollPane scrollPane;
     private JBoard pnlBoard;
@@ -48,9 +48,9 @@ public class MainFrame extends JFrame {
     private int px, py;          // paddings from top-left corner
     private float sizeCell;      // cell's size
 
-    private Point[] p;           // top-left squares' beginnings
+    private Point[]     p;       // top-left squares' beginnings
     private Area[] joints;       // figures' joints
-    private Point[] s;           // top-left subsquares' corners
+    private Point[]     s;       // top-left subsquares' corners
     private boolean[][] c;       // rounding squares' corners
 
     private boolean[] dLeftRight;
@@ -95,13 +95,6 @@ public class MainFrame extends JFrame {
             this.y2 = y2;
         }
 
-        private Area() {
-            this.x1 = 0;
-            this.y1 = 0;
-            this.x2 = 0;
-            this.y2 = 0;
-        }
-
         public String toString() {
             return getClass().getName() + "[x1=" + x1 + ",y1=" + y1 + ",x2=" + x2 + ",y2=" + y2 + "]";
         }
@@ -134,7 +127,7 @@ public class MainFrame extends JFrame {
 
     private class JBoard extends JPanel {
         Graphics2D g;
-        private Font f;
+        private Font        f;
         private FontMetrics m;
 
         private void setStroke(int i, int s) {
@@ -194,9 +187,9 @@ public class MainFrame extends JFrame {
             int h = getHeight() - 2 * py;
 
             if (amount == 1)
-                sizeCell = Math.min(toFloat(w)/size, toFloat(h)/size);
+                sizeCell = Math.min(toFloat(w) / size, toFloat(h) / size);
             else
-                sizeCell = Math.min(toFloat(w)/sizeX, toFloat(h)/sizeY);
+                sizeCell = Math.min(toFloat(w) / sizeX, toFloat(h) / sizeY);
 
             if (sizeCell < 30)
                 sizeCell = 30;
@@ -425,7 +418,7 @@ public class MainFrame extends JFrame {
             // digits
             {
                 String fontName = g.getFont().getFontName();
-                String txt = toStr(size);
+                String txt      = toStr(size);
 
                 int fontSize = toInt(sizeCell) - 5;
 
@@ -822,10 +815,10 @@ public class MainFrame extends JFrame {
         }
         else {
             char[] chars;
-            int len;
+            int    len;
 
             if (digitsLang == 0) {
-                chars = new char[]{
+                chars = new char[] {
                         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                         'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
                         'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
@@ -833,7 +826,7 @@ public class MainFrame extends JFrame {
                 len = 25;
             }
             else {
-                chars = new char[]{
+                chars = new char[] {
                         'А', 'Б', 'В', 'Г', 'Д', 'Е', /*'Ё',*/ 'Ж', 'З',
                         'И', /*'Й',*/ 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р',
                         'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ',
@@ -885,16 +878,18 @@ public class MainFrame extends JFrame {
         for (int n = 0; n < amount; n++) {
             int max2 = max;
 
-            for (int x = 0; x < size; x++)
-                for (int y = 0; y < size; y++)
-                    if (arr[p[n].x + x][p[n].y + y] > 0)
+            for (int x = joints[n].x1; x < joints[n].x2; x++)
+                for (int y = joints[n].y1; y < joints[n].y2; y++)
+                    if (arr[x][y] > 0)
                         max2--;
 
             for (int z = 0; z < max2; ) {
-                // TODO miss joint cells
+                int x = rnd.nextInt(size) + p[n].x;
+                int y = rnd.nextInt(size) + p[n].y;
 
-                int x = rndX.nextInt(sizeX);
-                int y = rndY.nextInt(sizeY);
+                if (x >= joints[n].x1 && x < joints[n].x2
+                        && y >= joints[n].y1 && y < joints[n].y2)
+                    continue;
 
                 if (maskFigures[x][y] == -1)
                     continue;
@@ -914,33 +909,55 @@ public class MainFrame extends JFrame {
 
         // row(y)
         for (int x1 = 0; x1 < size; x1++)
-            if (game[x1][y] == d)
+            if (game[p[n].x + x1][y] == d)
                 return false;
 
         // column(x)
         for (int y1 = 0; y1 < size; y1++)
-            if (game[x][y1] == d)
+            if (game[x][p[n].y + y1] == d)
                 return false;
+
+        // figure
+        if (form == 1) {
+            int z = maskFigures[x][y];
+
+            for (int x1 = 0; x1 < size; x1++)
+                for (int y1 = 0; y1 < size; y1++)
+                    if (maskFigures[p[n].x + x1][p[n].y + y1] == z
+                            && game[p[n].x + x1][p[n].y + y1] == d)
+                        return false;
+        }
+        else {
+            int x2 = (x - p[n].x) / sx * sx + p[n].x;
+            int y2 = (y - p[n].y) / sy * sy + p[n].y;
+
+            for (int x1 = 0; x1 < sx; x1++)
+                for (int y1 = 0; y1 < sy; y1++)
+                    if (game[x1 + x2][y1 + y2] == d)
+                        return false;
+        }
 
         // diagonal(left)
         if (dLeftRight[0] && x == y)
             for (int x1 = 0; x1 < size; x1++)
-                if (game[x1][x1] == d)
+                if (game[p[n].x + x1][p[n].y + x1] == d)
                     return false;
 
         // diagonal(right)
         if (dLeftRight[1] && size - x - 1 == y)
             for (int x1 = 0; x1 < size; x1++)
-                if (game[size - x1 - 1][x1] == d)
+                if (game[p[n].x + size - x1 - 1][p[n].y + x1] == d)
                     return false;
 
         // subsquares
-//            if (subsquares > 0)
-//                for (Point elem : s)
-//                    for (int x1 = 0; x1 < sx; x1++)
-//                        for (int y1 = 0; y1 < sy; y1++)
-//                            if (game[elem.x + x1][elem.y + y1] == d)
-//                                return false;
+        if (subsquares > 0)
+            for (Point elem : s)
+                if (x >= elem.x && x < elem.x + sx
+                        && y >= elem.y && y < elem.y + sy)
+                    for (int x1 = 0; x1 < sx; x1++)
+                        for (int y1 = 0; y1 < sy; y1++)
+                            if (game[p[n].x + elem.x + x1][p[n].y + elem.y + y1] == d)
+                                return false;
 
         game[x][y] = d;
 
@@ -1085,7 +1102,7 @@ public class MainFrame extends JFrame {
             sizeChanged();
         });
 
-        NumberFormat format = NumberFormat.getInstance();
+        NumberFormat    format    = NumberFormat.getInstance();
         NumberFormatter formatter = new NumberFormatter(format);
         formatter.setValueClass(Integer.class);
         formatter.setMinimum(4);
@@ -1375,9 +1392,9 @@ public class MainFrame extends JFrame {
             Dimension d = pnlBoard.getMinimumSize();
 
             // screen's size
-            final Toolkit toolkit = Toolkit.getDefaultToolkit();
-            final Insets insets = toolkit.getScreenInsets(getGraphicsConfiguration());
-            final Dimension size = toolkit.getScreenSize();
+            final Toolkit   toolkit = Toolkit.getDefaultToolkit();
+            final Insets    insets  = toolkit.getScreenInsets(getGraphicsConfiguration());
+            final Dimension size    = toolkit.getScreenSize();
             size.width  -= insets.left + insets.right;
             size.height -= insets.top + insets.bottom;
 
