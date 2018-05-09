@@ -49,6 +49,7 @@ public class MainFrame extends JFrame {
     private float sizeCell;      // cell's size
 
     private Point[] p;           // top-left squares' beginnings
+    private Area[] joints;       // figures' joints
     private Point[] s;           // top-left subsquares' corners
     private boolean[][] c;       // rounding squares' corners
 
@@ -76,6 +77,33 @@ public class MainFrame extends JFrame {
                 return toStr(this.x) + " × " + toStr(this.y);
             else
                 return "_______";
+        }
+    }
+
+    // class for figures' joints
+
+    private class Area {
+        private int x1;
+        private int y1;
+        private int x2;
+        private int y2;
+
+        private Area(int x1, int y1, int x2, int y2) {
+            this.x1 = x1;
+            this.y1 = y1;
+            this.x2 = x2;
+            this.y2 = y2;
+        }
+
+        private Area() {
+            this.x1 = 0;
+            this.y1 = 0;
+            this.x2 = 0;
+            this.y2 = 0;
+        }
+
+        public String toString() {
+            return getClass().getName() + "[x1=" + x1 + ",y1=" + y1 + ",x2=" + x2 + ",y2=" + y2 + "]";
         }
     }
 
@@ -526,6 +554,7 @@ public class MainFrame extends JFrame {
                     sizeX = size;
                     sizeY = size;
                     p = new Point[] {new Point(0, 0)};
+                    joints = new Area[] {new Area(0, 0, 0, 0)};
                     c = new boolean[][] {{false, false, false, false}};
                     break;
                 case 2:
@@ -533,6 +562,9 @@ public class MainFrame extends JFrame {
                     sizeY = size * 2 - cy;
                     p = new Point[] {new Point(0, 0),
                                      new Point(size - cx, size - cy)
+                    };
+                    joints = new Area[] {new Area(0, 0, 0, 0),
+                                         new Area(size - cx, size - cy, size, size)
                     };
                     c = new boolean[][] {{false, false,  true, false},
                                          { true, false, false, false}
@@ -544,6 +576,10 @@ public class MainFrame extends JFrame {
                     p = new Point[] {new Point(0, 0),
                                      new Point(size - cx, size - cy),
                                      new Point(0, size * 2 - cy * 2)
+                    };
+                    joints = new Area[] {new Area(0, 0, 0, 0),
+                                         new Area(size - cx, size - cy, size, size),
+                                         new Area(size - cx, size * 2 - cy * 2, size, size * 2 - cy)
                     };
                     c = new boolean[][] {{false, false,  true, false},
                                          { true, false, false,  true},
@@ -557,6 +593,11 @@ public class MainFrame extends JFrame {
                                      new Point(size - cx, size - cy),
                                      new Point(0, size * 2 - cy * 2),
                                      new Point(size - cx, size * 3 - cy * 3)
+                    };
+                    joints = new Area[] {new Area(0, 0, 0, 0),
+                                         new Area(size - cx, size - cy, size, size),
+                                         new Area(size - cx, size * 2 - cy * 2, size, size * 2 - cy),
+                                         new Area(size - cx, size * 3 - cy * 3, size, size * 3 - cy * 2)
                     };
                     c = new boolean[][] {{false, false,  true, false},
                                          { true, false, false,  true},
@@ -572,6 +613,12 @@ public class MainFrame extends JFrame {
                                      new Point(0, size * 2 - cy * 2),
                                      new Point(size * 2 - cx * 2, 0),
                                      new Point(size * 2 - cx * 2, size * 2 - cy * 2)
+                    };
+                    joints = new Area[] {new Area(0, 0, 0, 0),
+                                         new Area(size - cx, size - cy, size, size),
+                                         new Area(size - cx, size * 2 - cy * 2, size, size * 2 - cy),
+                                         new Area(size * 2 - cx * 2, size - cy, size * 2 - cx, size),
+                                         new Area(size * 2 - cx * 2, size * 2 - cy * 2, size * 2 - cx, size * 2 - cy)
                     };
                     c = new boolean[][] {{false, false,  true, false},
                                          { true,  true,  true,  true},
@@ -919,7 +966,7 @@ public class MainFrame extends JFrame {
                 else
                     x = toInt((x - px) / sizeCell);
 
-                if (y < py || y > bHeight+py)
+                if (y < py || y > bHeight + py)
                     return;
                 else
                     y = toInt((y - py) / sizeCell);
@@ -1221,39 +1268,7 @@ public class MainFrame extends JFrame {
 
     }
 
-    /**private void findAllSizes() {
-        int amount = 0;
-        String str;
-        Vector<String> list = new Vector<>();
-
-        for (int i = 4; i < 101; i++) {
-            if (i ==  5 || i ==  7 || i == 11 || i == 13 || i == 17 || i == 19
-                    || i == 23 || i == 29 || i == 31 || i == 37 || i == 41 || i == 43
-                    || i == 47 || i == 53 || i == 59 || i == 61 || i == 67 || i == 71
-                    || i == 73 || i == 79 || i == 83 || i == 89 || i == 97)
-                continue;
-
-            for (int j = 2; j < 11; j++) {
-                if (i % j != 0)
-                    continue;
-
-                int z = i / j;
-
-                if (z < j)
-                    break;
-
-                if (z == 1 || z - j > 7)
-                    continue;
-
-                str = toStr(++amount) + "\t" + toStr(j) + "\t" + toStr(z) + "\t" + toStr(i) + "\n";
-                list.add(str);
-
-                if (z == j)
-                    break;
-            }
-        }
-    }
-
+    /**
     // Implementing Fisher–Yates shuffle
     static void shuffleArray(int[] ar) {
         Random rnd = new Random();
@@ -1266,7 +1281,8 @@ public class MainFrame extends JFrame {
             ar[index] = ar[i];
             ar[i] = a;
         }
-    }**/
+    }
+    **/
 
     // testing
 
@@ -1438,25 +1454,25 @@ public class MainFrame extends JFrame {
         }
     }
 
-    private void findSizes(int x) {
+    private void findSizes(int s) {
         SquareSize item = null;
 
-        for (int j = 2; j < 11; j++) {
-            if (x % j != 0)
+        for (int y = 2; y < 11; y++) {
+            if (s % y != 0)
                 continue;
 
-            int z = x / j;
+            int x = s / y;
 
-            if (z < j)
+            if (x < y)
                 break;
 
-            if (z - j > 7)
+            if (x - y > 7)
                 continue;
 
-            item = new SquareSize(z, j);
+            item = new SquareSize(x, y);
             cmbSubsquareSizes.insertItemAt(item, 0);
 
-            if (z == j)
+            if (x == y)
                 break;
         }
 
