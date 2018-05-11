@@ -60,10 +60,12 @@ public class MainFrame extends JFrame {
     private boolean[] dLeftRight;
     private boolean[] sLeftRight;
 
+    private int step;
+
     // drawing
 
     private class JBoard extends JPanel {
-        Graphics2D g;
+        Graphics2D          g;
         private Font        f;
         private FontMetrics m;
 
@@ -184,15 +186,16 @@ public class MainFrame extends JFrame {
 
                 if (diagonals > 0) {
                     for (int n = 0; n < amount; n++) {
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0, j = size - 1; i < size; i++, j--) {
                             int x1 = Converters.toInt(sizeCell * (p[n].x + i));
-                            int x2 = Converters.toInt(sizeCell * (p[n].x + size - i - 1));
+                            int x2 = Converters.toInt(sizeCell * (p[n].x + j));
                             int x3 = Converters.toInt(sizeCell * (p[n].x + i + 1));
-                            int x4 = Converters.toInt(sizeCell * (p[n].x + size - i));
+                            int x4 = Converters.toInt(sizeCell * (p[n].x + j + 1));
                             int y1 = Converters.toInt(sizeCell * (p[n].y + i));
-                            int y2 = Converters.toInt(sizeCell * (p[n].y + size - i - 1));
+                            int y2 = Converters.toInt(sizeCell * (p[n].y + j));
                             int y3 = Converters.toInt(sizeCell * (p[n].y + i + 1));
-                            int y4 = Converters.toInt(sizeCell * (p[n].y + size - i));
+                            int y4 = Converters.toInt(sizeCell * (p[n].y + j + 1));
+
                             int wi1 = x3 - x1;
                             int wi2 = x4 - x2;
                             int he1 = y3 - y1;
@@ -799,15 +802,16 @@ public class MainFrame extends JFrame {
 
     private class Page {
         int[][][] data;
-        int       step;
+        int       state;
 
         private Page() {
             data = new int[sizeX][sizeY][size + 1];
-            //step = s;
+            state = step;
         }
 
         private Page(int[][][] d) {
             data = d;
+            state = step;
         }
 
         int[][][] copy() {
@@ -868,11 +872,12 @@ public class MainFrame extends JFrame {
                 if (dLeftRight[0] && x == y)
                     for (int x1 = 0; x1 < size; x1++)
                         res[x1][x1][d + 1] = 1;
-                if (dLeftRight[1] && x == y)
-                    for (int x1 = 0; x1 < size; x1++)
-                        res[size - x1 - 1][x1][d + 1] = 1;
+                if (dLeftRight[1] && x == size - y - 1)
+                    for (int x1 = 0, y1 = size - 1; x1 < size; x1++, y1--)
+                        res[x1][y1][d + 1] = 1;
 
                 // current subsquare for the digit
+                // TODO: fill variant into subsquare
 //                if (subsquares > 0) {
 //                    for (Point elem : s)
 //                        for (int x1 = 0; x1 < sx; x1++)
@@ -1025,10 +1030,12 @@ public class MainFrame extends JFrame {
             data.add(last);
         }
 
-        private Page deleteLast() {
+        private void deleteLast() {
             data.remove(last);
 
             int z = data.size() - 1;
+
+            step = last.state;
 
             if (z >= 0)
                 last = data.get(z);
@@ -1037,8 +1044,6 @@ public class MainFrame extends JFrame {
                 System.out.println("Nothing is in 'pages'!");
                 System.exit(-1);
             }
-
-            return last;
         }
 
         private void setDigit(int x, int y, int d, boolean newPage) {
@@ -1092,7 +1097,6 @@ public class MainFrame extends JFrame {
 
     private class Generator {
         Pages pages;
-        int   step;
 
         final Random rnd = new Random();
 
@@ -1134,17 +1138,16 @@ public class MainFrame extends JFrame {
                 return arr;
             }
             else {
-                step = goToNextStep(0);
-
                 for (int n = 0; n < amount; n++) {
                     pages = new Pages();
 
-                    // step 1 - center
+                    // step 0 - center
                     if (diagonals == 3 && size % 2 == 1) {
                         int d = rnd.nextInt(size);
                         int c = size / 2;
 
-                        pages.setDigit(p[n].x + c, p[n].x + c, d, true);
+                        if (pages.isPossibleCell(p[n].x + c, p[n].y + c, d))
+                            pages.setDigit(p[n].x + c, p[n].y + c, d, true);
                     }
 
                     for (int d = 0; d < size; d++) {
@@ -1152,65 +1155,100 @@ public class MainFrame extends JFrame {
                         if (d == size - 1) {
                             for (int x = 0; x < size; x++)
                                 for (int y = 0; y < size; y++)
-                                    if (pages.isPossibleCell(x, y, d))
-                                        pages.setDigit(x, y, d, false);
+                                    if (pages.isPossibleCell(p[n].x + x, p[n].y + y, d))
+                                        pages.setDigit(p[n].x + x, p[n].y + y, d, false);
                             break;
                         }
 
-//                        // step 2 - left diagonal
-//                        if (dLeftRight[0]) {
-//                            if (!pages.isFilledDiagonal(d, true))
-//                                //
-//                                continue;
-//                        }
-//                        // step 3 - right diagonal
-//                        if (dLeftRight[1]) {
-//                            if (!pages.isFilledDiagonal(d, false))
-//                                //
-//                                continue;
-//                        }
-//
-//                        // step 4 - subsquares
-//                        if (subsquares > 0) {
-//                            for (Point elem : s)
-//                                if (!pages.isFilledSubsquare(d, elem))
-//                                    //
-//                                    continue;
-//                        }
+                        for (step = 1; step < 3; step++) {
+                            if (step == 1 && dLeftRight[0]) {
+                                ArrayList<Integer> list = new ArrayList<>();
 
-                        // step 5 - columns
-                        for (int x = 0; x < size; x++) {
-                            if (pages.isFilledColumn(p[n].x + x, d))
-                                continue;
+                                for (int x = 0, y = 0; x < size; x++, y++)
+                                    if (pages.isPossibleCell(x, y, d))
+                                        list.add(x);
 
-                            ArrayList<Integer> list = new ArrayList<>();
+                                int z = list.size();
 
-                            for (int y = 0; y < size; y++)
-                                if (pages.isPossibleCell(x, y, d))
-                                    list.add(y);
+                                if (z > 0) {
+                                    int x = list.get(rnd.nextInt(z));
 
-                            int z = list.size();
-
-                            if (z > 0) {
-                                int y = list.get(rnd.nextInt(z));
-
-                                pages.setDigit(x, y, d, true);
+                                    pages.setDigit(p[n].x + x, p[n].y + x, d, true);
+                                }
                             }
-                            else {
-                                // draw back
-                                x -= 2;
-                                pages.deleteLast();
+                            else if (step == 2 && dLeftRight[1]) {
+                                ArrayList<Integer> list = new ArrayList<>();
 
-                                if (x < 0) {
-                                    d -= 2;
+                                for (int x = 0, y = size - 1; x < size; x++, y--)
+                                    if (pages.isPossibleCell(x, y, d))
+                                        list.add(y);
 
-                                    if (d < 0) {
-                                        System.out.println("It couldn't set " + Converters.toStr(d + 1));
-                                        return pages.getGame();
+                                int z = list.size();
+
+                                if (z > 0) {
+                                    int x = list.get(rnd.nextInt(z));
+                                    int y = size - x - 1;
+
+                                    pages.setDigit(p[n].x + x, p[n].y + y, d, true);
+                                }
+                            }
+                            else if (step == 3 && subsquares > 0) {
+                                for (Point elem : s)
+                                    if (!pages.isFilledSubsquare(d, elem))
+                                        ; // TODO: make checking and adding
+                            }
+                            else if (step == 4) {
+                                for (int x = 0; x < size; x++) {
+                                    if (pages.isFilledColumn(p[n].x + x, d))
+                                        continue;
+
+                                    ArrayList<Integer> list = new ArrayList<>();
+
+                                    for (int y = 0; y < size; y++)
+                                        if (pages.isPossibleCell(x, y, d))
+                                            list.add(y);
+
+                                    int z = list.size();
+
+                                    if (z > 0) {
+                                        int y = list.get(rnd.nextInt(z));
+
+                                        pages.setDigit(x, y, d, true);
                                     }
+                                    else {
+                                        // draw back
+                                        x -= 2;
+                                        pages.deleteLast();
 
-                                    x = size - 1;
-                                    pages.deleteLast();
+                                        if (x < 0) {
+                                            System.out.println("Step was " + Converters.toStr(step));
+                                            step -= 2;
+                                            System.out.println("Step is " + Converters.toStr(step));
+
+                                            if (step <= 0) {
+                                                d -= 2;
+
+                                                if (d < 0) {
+                                                    System.out.println("It couldn't set " + Converters.toStr(d + 1));
+                                                    return pages.getGame();
+                                                }
+
+                                                x = size - 1;
+                                                pages.deleteLast();
+                                            }
+                                            else {
+                                                d -= 1;
+
+                                                if (d < 0) {
+                                                    System.out.println("It couldn't set " + Converters.toStr(d + 1));
+                                                    return pages.getGame();
+                                                }
+
+                                                x = size - 1;
+                                                pages.deleteLast();
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1218,26 +1256,6 @@ public class MainFrame extends JFrame {
                 }
 
                 return pages.getGame();
-            }
-        }
-
-        private int goToNextStep(int step) {
-            switch (step) {
-                case 0:
-                    if (diagonals == 3 && size % 2 == 1)
-                        return 1; // center
-                case 1:
-                    if (dLeftRight[0])
-                        return 2; // left diagonal
-                case 2:
-                    if (dLeftRight[1])
-                        return 3; // right diagonal
-                case 3:
-                    if (subsquares > 0)
-                        return 4; // squares ???
-                case 4:
-                default:
-                    return 5;     // cell
             }
         }
 
@@ -1283,9 +1301,9 @@ public class MainFrame extends JFrame {
                         return false;
 
             // diagonal(right)
-            if (dLeftRight[1] && size - x - 1 == y)
-                for (int x1 = 0; x1 < size; x1++)
-                    if (game[p[n].x + size - x1 - 1][p[n].y + x1] == d)
+            if (dLeftRight[1] && x == size - y - 1)
+                for (int x1 = 0, y1 = size - 1; x1 < size; x1++, y1--)
+                    if (game[p[n].x + x1][p[n].y + y1] == d)
                         return false;
 
             // subsquares
